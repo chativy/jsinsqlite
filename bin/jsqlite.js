@@ -4,9 +4,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { buildDatabase } from "../src/build.js";
 import { compileModuleFile } from "../src/compiler.js";
+import { importModuleDatabase } from "../src/importer.js";
 
 const USAGE = `Usage:
   jsqlite build <manifest.json> <source.sqlite> [--force]
+  jsqlite import <entry.ts> <source.sqlite> [module-key] [--force]
   jsqlite compile <source.sqlite> [module-key]
 
 Module keys default to "main". Use --force to replace an existing database.`;
@@ -36,6 +38,28 @@ function run(args) {
     const databasePath = resolve(requireArgument(args, 1, "database path"));
     const moduleKey = args[2] ?? "main";
     process.stdout.write(`${compileModuleFile(databasePath, moduleKey)}\n`);
+    return;
+  }
+
+  if (command === "import") {
+    const entryPath = resolve(requireArgument(args, 1, "entry path"));
+    const databasePath = resolve(requireArgument(args, 2, "database path"));
+    const moduleKey = args[3]?.startsWith("--") ? undefined : args[3];
+    const graph = importModuleDatabase({
+      entryPath,
+      databasePath,
+      moduleKey,
+      overwrite: args.includes("--force"),
+    });
+
+    console.log(
+      `Built ${databasePath} with ${graph.manifest.modules.length} module(s)`,
+    );
+    if (graph.packageImports.length > 0) {
+      console.log(
+        `Runtime package imports left external: ${graph.packageImports.join(", ")}`,
+      );
+    }
     return;
   }
 

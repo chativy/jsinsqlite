@@ -13,10 +13,15 @@
     "jsqlite": "./bin/jsqlite.js"
   },
   "engines": {
-    "node": ">=22.5.0"
+    "node": ">=22.18.0"
   },
   "scripts": {
+    "build:pi": "node bin/jsqlite.js import ../pi/apps/p3/src/pi.ts examples/pi.sqlite pi --force",
     "demo": "node bin/jsqlite.js build examples/demo.manifest.json .tmp/demo.sqlite --force && node --import ./src/register.js examples/demo.mjs",
+    "demo:pi": "npm run build:pi && node --import ./src/register.js examples/pi.mjs",
     "test": "node --test"
+  },
+  "dependencies": {
+    "typescript": "5.9.3"
   }
 }
