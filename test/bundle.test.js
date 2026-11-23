@@ -63,3 +63,44 @@ test("bundle files are stored in sqlite and run from the extracted tree", () => 
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("run-pi-code passes a DeepSeek key through the child environment", () => {
+  const directory = mkdtempSync(join(tmpdir(), "jsqlite-deepseek-"));
+  const databasePath = join(directory, "bundle.sqlite");
+
+  try {
+    importBundleDatabase({
+      databasePath,
+      moduleKey: "pi-code",
+      entryPath: "dist/bundle/cli.js",
+      version: "v1.0.0",
+      files: [
+        {
+          path: "dist/bundle/cli.js",
+          content: Buffer.from(
+            'console.log(process.env.DEEPSEEK_API_KEY ?? "missing");',
+          ),
+          mode: 0o755,
+        },
+      ],
+    });
+
+    const result = spawnSync(
+      process.execPath,
+      [
+        CLI_PATH.pathname,
+        "run-pi-code",
+        databasePath,
+        "--deepseek-key=test-secret",
+        "--",
+        "--version",
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout.trim(), "test-secret");
+    assert.doesNotMatch(result.stdout, /--deepseek-key/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

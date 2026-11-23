@@ -16,12 +16,12 @@
     "node": ">=22.18.0"
   },
   "scripts": {
-    "build:pi": "node bin/jsqlite.js import-git ../pi apps/p3/src/pi.ts examples/pi.sqlite pi --limit=5 --history=apps/p3/src --force",
-    "build:pi-code": "node scripts/import-pi-code.mjs ../pi examples/pi-code.sqlite",
     "demo": "node bin/jsqlite.js build examples/demo.manifest.json .tmp/demo.sqlite --force && node --import ./src/register.js examples/demo.mjs",
-    "demo:pi": "npm run build:pi && node --import ./src/register.js examples/pi.mjs",
+    "demo:pi": "node --import ./src/register.js examples/pi.mjs",
     "run:pi": "node bin/jsqlite.js run examples/pi.sqlite pi isPiName --args='[\"work\"]'",
-    "run:pi-code": "npm run build:pi-code && node bin/jsqlite.js run-bundle examples/pi-code.sqlite pi-code -- --help",
+    "run:deepseek": "node bin/jsqlite.js run-pi-code examples/pi-code.sqlite",
+    "run:pi-code": "node bin/jsqlite.js run-bundle examples/pi-code.sqlite pi-code",
+    "run:pi-code:help": "node bin/jsqlite.js run-bundle examples/pi-code.sqlite pi-code -- --help",
     "versions:pi": "node bin/jsqlite.js versions examples/pi.sqlite pi",
     "test": "node --test"
   },

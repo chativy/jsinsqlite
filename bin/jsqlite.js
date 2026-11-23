@@ -19,6 +19,7 @@ const USAGE = `Usage:
   jsqlite versions <source.sqlite> [module-key]
   jsqlite run <source.sqlite> <module-key> <export> [--version=tag] [--args=json-array]
   jsqlite run-bundle <source.sqlite> <module-key> [--version=tag] [-- pi-arguments...]
+  jsqlite run-pi-code <source.sqlite> --deepseek-key=key [--model=id] [-- pi-arguments...]
 
 Module keys default to "main". Use --force to replace an existing database.`;
 
@@ -31,6 +32,18 @@ function requireArgument(args, index, name) {
 function optionValue(args, name) {
   const prefix = `--${name}=`;
   return args.find((argument) => argument.startsWith(prefix))?.slice(prefix.length);
+}
+
+function requiredOptionValue(args, name) {
+  const inline = optionValue(args, name);
+  if (inline !== undefined && inline !== "") return inline;
+
+  const index = args.indexOf(`--${name}`);
+  const value = index === -1 ? undefined : args[index + 1];
+  if (value === undefined || value.startsWith("--")) {
+    throw new Error(`missing --${name}`);
+  }
+  return value;
 }
 
 async function runCommand(args) {
@@ -181,6 +194,39 @@ async function runCommand(args) {
       moduleKey,
       version: optionValue(args, "version"),
       arguments: forwardedArguments,
+    });
+    if (result.code !== null) process.exitCode = result.code;
+    return;
+  }
+
+  if (command === "run-pi-code") {
+    const databasePath = resolve(requireArgument(args, 1, "database path"));
+    const deepseekKey =
+      optionValue(args, "deepseek-key") ?? process.env.DEEPSEEK_API_KEY;
+    if (!deepseekKey) {
+      requiredOptionValue(args, "deepseek-key");
+    }
+    const model = optionValue(args, "model") ?? "deepseek/deepseek-chat";
+    const hasProvider = forwardedArguments.some(
+      (argument) =>
+        argument === "--provider" || argument.startsWith("--provider="),
+    );
+    const hasModel = forwardedArguments.some(
+      (argument) =>
+        argument === "--model" || argument.startsWith("--model="),
+    );
+    const defaultArguments = [];
+    if (!hasProvider) defaultArguments.push("--provider", "deepseek");
+    if (!hasModel) defaultArguments.push("--model", model);
+    const piArguments = [...defaultArguments, ...forwardedArguments];
+    const result = await runBundledModule({
+      databasePath,
+      moduleKey: "pi-code",
+      version: optionValue(args, "version"),
+      arguments: piArguments,
+      env: {
+        DEEPSEEK_API_KEY: deepseekKey,
+      },
     });
     if (result.code !== null) process.exitCode = result.code;
     return;

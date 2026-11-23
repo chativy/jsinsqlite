@@ -93,6 +93,7 @@ export async function runBundledModule(options) {
       env: {
         ...process.env,
         PI_PACKAGE_DIR: root,
+        ...options.env,
       },
       stdio: "inherit",
     });
