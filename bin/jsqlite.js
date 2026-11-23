@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { buildDatabase } from "../src/build.js";
+import { runBundledModule } from "../src/bundle-runner.js";
 import { compileModuleFile } from "../src/compiler.js";
 import { openSourceDatabase } from "../src/database.js";
 import { importGitVersions } from "../src/git-importer.js";
@@ -17,6 +18,7 @@ const USAGE = `Usage:
   jsqlite compile <source.sqlite> [module-key] [version]
   jsqlite versions <source.sqlite> [module-key]
   jsqlite run <source.sqlite> <module-key> <export> [--version=tag] [--args=json-array]
+  jsqlite run-bundle <source.sqlite> <module-key> [--version=tag] [-- pi-arguments...]
 
 Module keys default to "main". Use --force to replace an existing database.`;
 
@@ -32,6 +34,9 @@ function optionValue(args, name) {
 }
 
 async function runCommand(args) {
+  const separator = args.indexOf("--");
+  const forwardedArguments = separator === -1 ? [] : args.slice(separator + 1);
+  if (separator !== -1) args = args.slice(0, separator);
   const command = args[0];
 
   if (command === "build") {
@@ -165,6 +170,19 @@ async function runCommand(args) {
 
     const result = await entry(...callArguments);
     if (result !== undefined) console.log(result);
+    return;
+  }
+
+  if (command === "run-bundle") {
+    const databasePath = resolve(requireArgument(args, 1, "database path"));
+    const moduleKey = requireArgument(args, 2, "module key");
+    const result = await runBundledModule({
+      databasePath,
+      moduleKey,
+      version: optionValue(args, "version"),
+      arguments: forwardedArguments,
+    });
+    if (result.code !== null) process.exitCode = result.code;
     return;
   }
 

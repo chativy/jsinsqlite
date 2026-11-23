@@ -1,4 +1,6 @@
 export { buildDatabase, validateManifest } from "./build.js";
+export { importBundleDatabase } from "./bundle-importer.js";
+export { runBundledModule } from "./bundle-runner.js";
 export {
   compileModule,
   compileModuleFile,

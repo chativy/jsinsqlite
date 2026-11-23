@@ -49,7 +49,7 @@ test("buildDatabase writes modules, entries, and references", () => {
     try {
       assert.equal(
         db.prepare("SELECT value FROM jsqlite_meta").get().value,
-        "4",
+        "5",
       );
       assert.equal(
         db

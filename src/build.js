@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
-import { basename, dirname, extname, join } from "node:path";
+import { basename, dirname, extname, join, posix } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { ROOT_ENTRY_KEY, ROOT_ENTRY_KIND } from "./constants.js";
 import { initializeSchema } from "./schema.js";
@@ -34,6 +34,41 @@ function optionalString(value, path) {
     throw new Error(`${path} must be a string`);
   }
   return value;
+}
+
+function validateAsset(rawAsset, path) {
+  if (!isPlainObject(rawAsset)) {
+    throw new Error(`${path} must be an object`);
+  }
+
+  const assetPath = requireString(rawAsset.path, `${path}.path`).replaceAll(
+    "\\",
+    "/",
+  );
+  const normalized = posix.normalize(assetPath);
+  if (
+    normalized === "." ||
+    normalized === ".." ||
+    normalized.startsWith("../") ||
+    posix.isAbsolute(normalized) ||
+    normalized.includes("\0")
+  ) {
+    throw new Error(`${path}.path must be a safe relative path`);
+  }
+
+  if (!(rawAsset.content instanceof Uint8Array)) {
+    throw new Error(`${path}.content must be a Buffer or Uint8Array`);
+  }
+  const mode = rawAsset.mode ?? 0o644;
+  if (!Number.isInteger(mode) || mode < 0 || mode > 0o7777) {
+    throw new Error(`${path}.mode must be a valid file mode`);
+  }
+
+  return {
+    path: normalized,
+    content: Buffer.from(rawAsset.content),
+    mode,
+  };
 }
 
 export function validateManifest(input) {
@@ -162,6 +197,25 @@ export function validateManifest(input) {
         }
       }
 
+      const rawAssets = rawVersion.assets ?? [];
+      if (!Array.isArray(rawAssets)) {
+        throw new Error(`${versionPath}.assets must be an array`);
+      }
+      const assetPaths = new Set();
+      const assets = rawAssets.map((rawAsset, assetIndex) => {
+        const asset = validateAsset(
+          rawAsset,
+          `${versionPath}.assets[${assetIndex}]`,
+        );
+        if (assetPaths.has(asset.path)) {
+          throw new Error(
+            `duplicate asset path in module ${key}/${version}: ${asset.path}`,
+          );
+        }
+        assetPaths.add(asset.path);
+        return asset;
+      });
+
       const format = rawVersion.format ?? "js";
       if (!MODULE_FORMATS.has(format)) {
         throw new Error(
@@ -185,6 +239,7 @@ export function validateManifest(input) {
           rawVersion.sourcePath,
           `${versionPath}.sourcePath`,
         ),
+        assets,
         entries,
       };
     });
@@ -206,6 +261,11 @@ function contentHash(moduleKey, version) {
         module: moduleKey,
         sourcePath: version.sourcePath,
         entries: version.entries,
+        assets: version.assets.map((asset) => ({
+          path: asset.path,
+          mode: asset.mode,
+          sha256: createHash("sha256").update(asset.content).digest("hex"),
+        })),
       }),
     )
     .digest("hex");
@@ -240,6 +300,12 @@ function writeValidatedManifest(db, manifest) {
   );
   const insertRef = db.prepare(
     "INSERT INTO entry_refs(from_entry_id, slot, to_entry_id) VALUES (?, ?, ?)",
+  );
+  const insertAsset = db.prepare(
+    `
+      INSERT INTO module_assets(module_version_id, path, content, mode)
+      VALUES (?, ?, ?, ?)
+    `,
   );
 
   db.exec("BEGIN IMMEDIATE");
@@ -291,6 +357,14 @@ function writeValidatedManifest(db, manifest) {
               entryIds.get(ref.entry),
             );
           }
+        }
+        for (const asset of version.assets) {
+          insertAsset.run(
+            moduleVersionId,
+            asset.path,
+            asset.content,
+            asset.mode,
+          );
         }
       }
       insertHead.run(moduleId, latestVersionId);

@@ -33,6 +33,15 @@ const SCHEMA_SQL = `
       REFERENCES module_versions(id) ON DELETE CASCADE
   ) STRICT;
 
+  CREATE TABLE module_assets (
+    module_version_id INTEGER NOT NULL
+      REFERENCES module_versions(id) ON DELETE CASCADE,
+    path TEXT NOT NULL,
+    content BLOB NOT NULL,
+    mode INTEGER NOT NULL DEFAULT 420,
+    PRIMARY KEY (module_version_id, path)
+  ) STRICT;
+
   CREATE TABLE entries (
     id INTEGER PRIMARY KEY,
     module_version_id INTEGER NOT NULL REFERENCES module_versions(id) ON DELETE CASCADE,
