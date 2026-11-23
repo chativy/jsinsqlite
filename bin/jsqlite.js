@@ -2,11 +2,13 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { buildDatabase } from "../src/build.js";
 import { compileModuleFile } from "../src/compiler.js";
 import { openSourceDatabase } from "../src/database.js";
 import { importGitVersions } from "../src/git-importer.js";
 import { importModuleDatabase } from "../src/importer.js";
+import "../src/register.js";
 
 const USAGE = `Usage:
   jsqlite build <manifest.json> <source.sqlite> [--force]
@@ -14,6 +16,7 @@ const USAGE = `Usage:
   jsqlite import-git <repo> <entry> <source.sqlite> [module-key] [--limit=5] [--history=path] [--force]
   jsqlite compile <source.sqlite> [module-key] [version]
   jsqlite versions <source.sqlite> [module-key]
+  jsqlite run <source.sqlite> <module-key> <export> [--version=tag] [--args=json-array]
 
 Module keys default to "main". Use --force to replace an existing database.`;
 
@@ -28,7 +31,7 @@ function optionValue(args, name) {
   return args.find((argument) => argument.startsWith(prefix))?.slice(prefix.length);
 }
 
-function run(args) {
+async function runCommand(args) {
   const command = args[0];
 
   if (command === "build") {
@@ -139,11 +142,37 @@ function run(args) {
     return;
   }
 
+  if (command === "run") {
+    const databasePath = resolve(requireArgument(args, 1, "database path"));
+    const moduleKey = requireArgument(args, 2, "module key");
+    const exportName = requireArgument(args, 3, "export name");
+    const version = optionValue(args, "version");
+    const rawArguments = optionValue(args, "args") ?? "[]";
+    const callArguments = JSON.parse(rawArguments);
+    if (!Array.isArray(callArguments)) {
+      throw new Error("--args must be a JSON array");
+    }
+
+    const url = pathToFileURL(databasePath);
+    url.searchParams.set("module", moduleKey);
+    if (version !== undefined) url.searchParams.set("version", version);
+    url.searchParams.set("run", `${process.pid}-${Date.now()}`);
+    const loaded = await import(url.href);
+    const entry = loaded[exportName];
+    if (typeof entry !== "function") {
+      throw new Error(`module ${moduleKey} has no callable export ${exportName}`);
+    }
+
+    const result = await entry(...callArguments);
+    if (result !== undefined) console.log(result);
+    return;
+  }
+
   throw new Error(USAGE);
 }
 
 try {
-  run(process.argv.slice(2));
+  await runCommand(process.argv.slice(2));
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;

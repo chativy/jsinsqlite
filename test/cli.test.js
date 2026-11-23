@@ -36,6 +36,21 @@ test("CLI builds a database and prints compiled module source", () => {
     assert.match(compile.stdout, /export class Order/);
     assert.match(compile.stdout, /total\(\) \{/);
     assert.match(compile.stdout, /formatTotal\(order\.total\(\)\)/);
+
+    const run = spawnSync(
+      process.execPath,
+      [
+        CLI_PATH.pathname,
+        "run",
+        databasePath,
+        "lib",
+        "formatTotal",
+        `--args=${JSON.stringify([42.5])}`,
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout.trim(), "Total: $42.50");
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
