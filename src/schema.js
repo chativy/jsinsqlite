@@ -11,7 +11,9 @@ const SCHEMA_SQL = `
   CREATE TABLE modules (
     id INTEGER PRIMARY KEY,
     key TEXT NOT NULL UNIQUE,
-    description TEXT NOT NULL DEFAULT ''
+    description TEXT NOT NULL DEFAULT '',
+    format TEXT NOT NULL DEFAULT 'js' CHECK (format IN ('js', 'ts')),
+    source_path TEXT NOT NULL DEFAULT ''
   ) STRICT;
 
   CREATE TABLE entries (

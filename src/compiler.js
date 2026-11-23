@@ -13,7 +13,9 @@ class SourceEntryError extends Error {
 
 function loadModuleGraph(db, moduleKey) {
   const module = db
-    .prepare("SELECT id, key FROM modules WHERE key = ?")
+    .prepare(
+      "SELECT id, key, format, source_path FROM modules WHERE key = ?",
+    )
     .get(moduleKey);
   if (!module) {
     throw new SourceEntryError(
@@ -153,7 +155,7 @@ function createRenderer(graph, moduleKey) {
   return renderEntry;
 }
 
-export function compileModule(db, moduleKey = "main") {
+export function compileModuleRecord(db, moduleKey = "main") {
   const graph = loadModuleGraph(db, moduleKey);
   const renderEntry = createRenderer(graph, moduleKey);
 
@@ -162,16 +164,29 @@ export function compileModule(db, moduleKey = "main") {
     renderEntry(entry);
   }
 
-  return renderEntry(graph.root);
+  return {
+    moduleKey,
+    format: graph.module.format,
+    sourcePath: graph.module.source_path,
+    source: renderEntry(graph.root),
+  };
 }
 
-export function compileModuleFile(databasePath, moduleKey = "main") {
+export function compileModule(db, moduleKey = "main") {
+  return compileModuleRecord(db, moduleKey).source;
+}
+
+export function compileModuleFileRecord(databasePath, moduleKey = "main") {
   const db = openSourceDatabase(databasePath);
   try {
-    return compileModule(db, moduleKey);
+    return compileModuleRecord(db, moduleKey);
   } finally {
     db.close();
   }
+}
+
+export function compileModuleFile(databasePath, moduleKey = "main") {
+  return compileModuleFileRecord(databasePath, moduleKey).source;
 }
 
 export { SourceEntryError };

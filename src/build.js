@@ -10,9 +10,11 @@ const ENTRY_KINDS = new Set([
   "function",
   "method",
   "constant",
+  "type",
   "statement",
   "snippet",
 ]);
+const MODULE_FORMATS = new Set(["js", "ts"]);
 
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -129,9 +131,19 @@ export function validateManifest(input) {
     return {
       key,
       description: optionalString(rawModule.description, `${modulePath}.description`),
+      format: rawModule.format ?? "js",
+      sourcePath: optionalString(rawModule.sourcePath, `${modulePath}.sourcePath`),
       entries,
     };
   });
+
+  for (const module of modules) {
+    if (!MODULE_FORMATS.has(module.format)) {
+      throw new Error(
+        `module ${module.key} format must be one of: ${[...MODULE_FORMATS].join(", ")}`,
+      );
+    }
+  }
 
   return { modules };
 }
@@ -147,7 +159,7 @@ function temporaryDatabasePath(databasePath) {
 
 function writeValidatedManifest(db, manifest) {
   const insertModule = db.prepare(
-    "INSERT INTO modules(key, description) VALUES (?, ?)",
+    "INSERT INTO modules(key, description, format, source_path) VALUES (?, ?, ?, ?)",
   );
   const insertEntry = db.prepare(
     "INSERT INTO entries(module_id, key, kind, source) VALUES (?, ?, ?, ?)",
@@ -159,7 +171,12 @@ function writeValidatedManifest(db, manifest) {
   db.exec("BEGIN IMMEDIATE");
   try {
     for (const module of manifest.modules) {
-      const moduleResult = insertModule.run(module.key, module.description);
+      const moduleResult = insertModule.run(
+        module.key,
+        module.description,
+        module.format,
+        module.sourcePath,
+      );
       const moduleId = Number(moduleResult.lastInsertRowid);
       const entryIds = new Map();
 

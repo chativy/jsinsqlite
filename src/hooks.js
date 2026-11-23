@@ -1,6 +1,6 @@
 import { extname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { compileModuleFile } from "./compiler.js";
+import { compileModuleFileRecord } from "./compiler.js";
 
 const LOGICAL_MODULE_PREFIX = "jsqlite:";
 
@@ -69,9 +69,13 @@ export function load(url, context, nextLoad) {
     return nextLoad(url, context);
   }
 
+  const compiled = compileModuleFileRecord(
+    target.databasePath,
+    target.moduleKey,
+  );
   return {
-    format: "module",
-    source: compileModuleFile(target.databasePath, target.moduleKey),
+    format: compiled.format === "ts" ? "module-typescript" : "module",
+    source: compiled.source,
     shortCircuit: true,
   };
 }

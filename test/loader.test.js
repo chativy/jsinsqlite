@@ -95,3 +95,54 @@ test("Node imports modules directly from sqlite URLs", async () => {
   }
 });
 
+test("Node strips TypeScript source loaded from sqlite", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "jsqlite-typescript-"));
+  const databasePath = join(directory, "source.sqlite");
+
+  try {
+    buildDatabase(databasePath, {
+      modules: [
+        {
+          key: "pi",
+          format: "ts",
+          entries: [
+            {
+              key: "main",
+              kind: "module",
+              source: [
+                'import { suffix } from "jsqlite:helper";',
+                "",
+                "export type Choice = { readonly name?: string };",
+                "export function isPiName(name: string): boolean {",
+                "  return /^[a-z0-9]+$/.test(name) && name.endsWith(suffix);",
+                "}",
+              ].join("\n"),
+            },
+          ],
+        },
+        {
+          key: "helper",
+          format: "ts",
+          entries: [
+            {
+              key: "main",
+              kind: "module",
+              source: 'export const suffix: string = "pi";',
+            },
+          ],
+        },
+      ],
+    });
+
+    const baseUrl = pathToFileURL(databasePath);
+    baseUrl.searchParams.set("module", "pi");
+    baseUrl.searchParams.set("test", `${Date.now()}-typescript`);
+    const loaded = await import(baseUrl.href);
+
+    assert.equal(loaded.isPiName("workpi"), true);
+    assert.equal(loaded.isPiName("work"), false);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+

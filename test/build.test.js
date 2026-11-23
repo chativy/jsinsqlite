@@ -12,6 +12,8 @@ function createManifest() {
       {
         key: "main",
         description: "test module",
+        format: "ts",
+        sourcePath: "src/main.ts",
         entries: [
           {
             key: "main",
@@ -47,12 +49,20 @@ test("buildDatabase writes modules, entries, and references", () => {
     try {
       assert.equal(
         db.prepare("SELECT value FROM jsqlite_meta").get().value,
-        "1",
+        "2",
       );
       assert.equal(
-        db.prepare("SELECT description FROM modules WHERE key = 'main'").get()
-          .description,
-        "test module",
+        db
+          .prepare(
+            "SELECT description, format, source_path FROM modules WHERE key = 'main'",
+          )
+          .get().format,
+        "ts",
+      );
+      assert.equal(
+        db.prepare("SELECT source_path FROM modules WHERE key = 'main'").get()
+          .source_path,
+        "src/main.ts",
       );
       assert.equal(
         db.prepare("SELECT count(*) AS count FROM entries").get().count,
