@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "description": "Compose Node.js ESM modules from entries stored in SQLite",
   "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./hooks": "./src/hooks.js",
+    "./register": "./src/register.js",
+    "./schema": "./src/schema.js"
+  },
   "engines": {
     "node": ">=22.5.0"
   },
