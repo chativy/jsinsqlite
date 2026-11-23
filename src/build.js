@@ -232,6 +232,9 @@ function writeValidatedManifest(db, manifest) {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `,
   );
+  const insertHead = db.prepare(
+    "INSERT INTO module_heads(module_id, module_version_id) VALUES (?, ?)",
+  );
   const insertEntry = db.prepare(
     "INSERT INTO entries(module_version_id, key, kind, source) VALUES (?, ?, ?, ?)",
   );
@@ -244,8 +247,18 @@ function writeValidatedManifest(db, manifest) {
     for (const module of manifest.modules) {
       const moduleResult = insertModule.run(module.key, module.description);
       const moduleId = Number(moduleResult.lastInsertRowid);
+      const versions = module.versions.map((version) => ({
+        ...version,
+        createdAt: version.createdAt || new Date().toISOString(),
+      }));
+      const latestVersion =
+        versions.find((version) => version.latest) ??
+        versions.reduce((latest, version) =>
+          version.createdAt > latest.createdAt ? version : latest,
+        );
+      let latestVersionId;
 
-      for (const version of module.versions) {
+      for (const version of versions) {
         const versionResult = insertVersion.run(
           moduleId,
           version.version,
@@ -254,9 +267,10 @@ function writeValidatedManifest(db, manifest) {
           version.format,
           version.sourcePath,
           contentHash(module.key, version),
-          version.createdAt || new Date().toISOString(),
+          version.createdAt,
         );
         const moduleVersionId = Number(versionResult.lastInsertRowid);
+        if (version === latestVersion) latestVersionId = moduleVersionId;
         const entryIds = new Map();
 
         for (const entry of version.entries) {
@@ -279,6 +293,7 @@ function writeValidatedManifest(db, manifest) {
           }
         }
       }
+      insertHead.run(moduleId, latestVersionId);
     }
     db.exec("COMMIT");
   } catch (error) {

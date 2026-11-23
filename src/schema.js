@@ -27,6 +27,12 @@ const SCHEMA_SQL = `
     UNIQUE (module_id, version)
   ) STRICT;
 
+  CREATE TABLE module_heads (
+    module_id INTEGER PRIMARY KEY REFERENCES modules(id) ON DELETE CASCADE,
+    module_version_id INTEGER NOT NULL UNIQUE
+      REFERENCES module_versions(id) ON DELETE CASCADE
+  ) STRICT;
+
   CREATE TABLE entries (
     id INTEGER PRIMARY KEY,
     module_version_id INTEGER NOT NULL REFERENCES module_versions(id) ON DELETE CASCADE,

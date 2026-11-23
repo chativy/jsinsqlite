@@ -36,12 +36,14 @@ function loadModuleGraph(db, moduleKey, requestedVersion) {
     : db
         .prepare(
           `
-            SELECT id, version, tag, source_revision, format, source_path,
-                   content_hash, created_at
-            FROM module_versions
-            WHERE module_id = ?
-            ORDER BY created_at DESC, id DESC
-            LIMIT 1
+            SELECT module_versions.id, module_versions.version,
+                   module_versions.tag, module_versions.source_revision,
+                   module_versions.format, module_versions.source_path,
+                   module_versions.content_hash, module_versions.created_at
+            FROM module_heads
+            JOIN module_versions
+              ON module_versions.id = module_heads.module_version_id
+            WHERE module_heads.module_id = ?
           `,
         )
         .get(module.id);

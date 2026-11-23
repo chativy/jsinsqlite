@@ -237,23 +237,18 @@ test("compileModuleFile selects an explicit version and defaults to latest", () 
       compileModuleFile(databasePath, "main", "v1.0.0"),
       "export const value = 1;",
     );
-    assert.deepEqual(
-      compileModuleFileRecord(databasePath, "main", "v1.0.0"),
-      {
-        moduleKey: "main",
-        version: "v1.0.0",
-        tag: "v1.0.0",
-        sourceRevision: "aaa",
-        contentHash: compileModuleFileRecord(
-          databasePath,
-          "main",
-          "v1.0.0",
-        ).contentHash,
-        createdAt: "2026-01-01T00:00:00.000Z",
-        format: "js",
-        sourcePath: "",
-        source: "export const value = 1;",
-      },
-    );
+    const record = compileModuleFileRecord(databasePath, "main", "v1.0.0");
+    assert.match(record.contentHash, /^[0-9a-f]{64}$/);
+    const { contentHash: _contentHash, ...withoutHash } = record;
+    assert.deepEqual(withoutHash, {
+      moduleKey: "main",
+      version: "v1.0.0",
+      tag: "v1.0.0",
+      sourceRevision: "aaa",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      format: "js",
+      sourcePath: "",
+      source: "export const value = 1;",
+    });
   });
 });

@@ -16,9 +16,10 @@
     "node": ">=22.18.0"
   },
   "scripts": {
-    "build:pi": "node bin/jsqlite.js import ../pi/apps/p3/src/pi.ts examples/pi.sqlite pi --force",
+    "build:pi": "node bin/jsqlite.js import-git ../pi apps/p3/src/pi.ts examples/pi.sqlite pi --limit=5 --history=apps/p3/src --force",
     "demo": "node bin/jsqlite.js build examples/demo.manifest.json .tmp/demo.sqlite --force && node --import ./src/register.js examples/demo.mjs",
     "demo:pi": "npm run build:pi && node --import ./src/register.js examples/pi.mjs",
+    "versions:pi": "node bin/jsqlite.js versions examples/pi.sqlite pi",
     "test": "node --test"
   },
   "dependencies": {

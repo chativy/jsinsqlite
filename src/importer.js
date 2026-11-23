@@ -101,6 +101,21 @@ function importReferences(sourceFile) {
   return references;
 }
 
+export function localRuntimeImports(source, filePath) {
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    filePath.endsWith(".js") || filePath.endsWith(".mjs")
+      ? ts.ScriptKind.JS
+      : ts.ScriptKind.TS,
+  );
+  return importReferences(sourceFile)
+    .map((specifier) => specifier.text)
+    .filter(isRelativeSpecifier);
+}
+
 function applyEdits(source, edits) {
   let result = source;
   for (const edit of edits.sort((left, right) => right.start - left.start)) {
