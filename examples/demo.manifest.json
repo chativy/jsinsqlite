@@ -1,0 +1,60 @@
+{
+  "modules": [
+    {
+      "key": "main",
+      "description": "Example order application",
+      "entries": [
+        {
+          "key": "main",
+          "kind": "module",
+          "source": "import { formatTotal } from './demo.sqlite?module=lib';\n\n/* @ref:0 */\n\nconst order = new Order([12, 30]);\nexport const summary = formatTotal(order.total());",
+          "refs": [
+            {
+              "slot": 0,
+              "entry": "Order"
+            }
+          ]
+        },
+        {
+          "key": "Order",
+          "kind": "class",
+          "source": "export class Order {\n  #items;\n\n  constructor(items) {\n    this.#items = items;\n  }\n\n  /* @ref:0 */\n}",
+          "refs": [
+            {
+              "slot": 0,
+              "entry": "Order.total"
+            }
+          ]
+        },
+        {
+          "key": "Order.total",
+          "kind": "method",
+          "source": "total() {\n  return this.#items.reduce((sum, value) => sum + value, 0);\n}"
+        }
+      ]
+    },
+    {
+      "key": "lib",
+      "description": "Example formatting helper",
+      "entries": [
+        {
+          "key": "main",
+          "kind": "module",
+          "source": "/* @ref:0 */",
+          "refs": [
+            {
+              "slot": 0,
+              "entry": "formatTotal"
+            }
+          ]
+        },
+        {
+          "key": "formatTotal",
+          "kind": "function",
+          "source": "export function formatTotal(total) {\n  return `Total: $${total.toFixed(2)}`;\n}"
+        }
+      ]
+    }
+  ]
+}
+

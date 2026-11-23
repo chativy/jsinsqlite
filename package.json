@@ -9,10 +9,14 @@
     "./register": "./src/register.js",
     "./schema": "./src/schema.js"
   },
+  "bin": {
+    "jsqlite": "./bin/jsqlite.js"
+  },
   "engines": {
     "node": ">=22.5.0"
   },
   "scripts": {
+    "demo": "node bin/jsqlite.js build examples/demo.manifest.json .tmp/demo.sqlite --force && node --import ./src/register.js examples/demo.mjs",
     "test": "node --test"
   }
 }
