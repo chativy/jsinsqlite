@@ -2,6 +2,8 @@ import { extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { compileModuleFile } from "./compiler.js";
 
+const LOGICAL_MODULE_PREFIX = "jsqlite:";
+
 function sqliteTarget(urlLike, parentURL) {
   let url;
   try {
@@ -27,8 +29,34 @@ function sqliteTarget(urlLike, parentURL) {
   };
 }
 
+function logicalSqliteTarget(specifier, parentURL) {
+  if (!specifier.startsWith(LOGICAL_MODULE_PREFIX)) return null;
+
+  const parent = sqliteTarget(parentURL);
+  if (!parent) return null;
+
+  const encodedModuleKey = specifier.slice(LOGICAL_MODULE_PREFIX.length);
+  let moduleKey;
+  try {
+    moduleKey = decodeURIComponent(encodedModuleKey);
+  } catch {
+    return null;
+  }
+  if (moduleKey === "") return null;
+
+  const url = new URL(parent.url);
+  url.searchParams.set("module", moduleKey);
+  return {
+    url: url.href,
+    databasePath: parent.databasePath,
+    moduleKey,
+  };
+}
+
 export function resolve(specifier, context, nextResolve) {
-  const target = sqliteTarget(specifier, context.parentURL);
+  const target =
+    sqliteTarget(specifier, context.parentURL) ??
+    logicalSqliteTarget(specifier, context.parentURL);
   if (target) {
     return { url: target.url, shortCircuit: true };
   }

@@ -21,7 +21,7 @@ test("Node imports modules directly from sqlite URLs", async () => {
               key: "main",
               kind: "module",
               source: [
-                'import { factorial } from "./source.sqlite?module=lib";',
+                'import { factorial } from "jsqlite:lib";',
                 "",
                 "/* @ref:0 */",
                 "",
