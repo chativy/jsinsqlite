@@ -19,7 +19,7 @@ const USAGE = `Usage:
   jsqlite versions <source.sqlite> [module-key]
   jsqlite run <source.sqlite> <module-key> <export> [--version=tag] [--args=json-array]
   jsqlite run-bundle <source.sqlite> <module-key> [--version=tag] [-- pi-arguments...]
-  jsqlite run-pi-code <source.sqlite> --deepseek-key=key [--model=id] [-- pi-arguments...]
+  jsqlite run-pi-code <source.sqlite> --deepseek-key=key [-- pi-arguments...]
 
 Module keys default to "main". Use --force to replace an existing database.`;
 
@@ -206,24 +206,11 @@ async function runCommand(args) {
     if (!deepseekKey) {
       requiredOptionValue(args, "deepseek-key");
     }
-    const model = optionValue(args, "model") ?? "deepseek/deepseek-chat";
-    const hasProvider = forwardedArguments.some(
-      (argument) =>
-        argument === "--provider" || argument.startsWith("--provider="),
-    );
-    const hasModel = forwardedArguments.some(
-      (argument) =>
-        argument === "--model" || argument.startsWith("--model="),
-    );
-    const defaultArguments = [];
-    if (!hasProvider) defaultArguments.push("--provider", "deepseek");
-    if (!hasModel) defaultArguments.push("--model", model);
-    const piArguments = [...defaultArguments, ...forwardedArguments];
     const result = await runBundledModule({
       databasePath,
       moduleKey: "pi-code",
       version: optionValue(args, "version"),
-      arguments: piArguments,
+      arguments: forwardedArguments,
       env: {
         DEEPSEEK_API_KEY: deepseekKey,
       },
