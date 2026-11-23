@@ -203,7 +203,13 @@ function preserveLeadingLines(text) {
   return "\n".repeat(newlineCount);
 }
 
-function splitModuleSource(filePath, moduleKey, rewrittenSource, rootDirectory) {
+function splitModuleSource(
+  filePath,
+  moduleKey,
+  rewrittenSource,
+  rootDirectory,
+  versionMetadata,
+) {
   const sourceFile = ts.createSourceFile(
     filePath,
     rewrittenSource,
@@ -253,16 +259,21 @@ function splitModuleSource(filePath, moduleKey, rewrittenSource, rootDirectory) 
   return {
     key: moduleKey,
     description: `Imported from ${sourcePath}`,
-    format: sourceFormat(filePath),
-    sourcePath,
-    entries: [
+    versions: [
       {
-        key: "main",
-        kind: "module",
-        source: mainSource,
-        refs,
+        ...versionMetadata,
+        format: sourceFormat(filePath),
+        sourcePath,
+        entries: [
+          {
+            key: "main",
+            kind: "module",
+            source: mainSource,
+            refs,
+          },
+          ...entries,
+        ],
       },
-      ...entries,
     ],
   };
 }
@@ -275,6 +286,12 @@ export function collectModuleGraph(entryPath, options = {}) {
 
   const rootDirectory = dirname(rootPath);
   const rootModuleKey = options.moduleKey ?? basename(rootPath, extname(rootPath));
+  const versionMetadata = {
+    version: options.version ?? "local",
+    tag: options.tag,
+    sourceRevision: options.sourceRevision,
+    createdAt: options.createdAt,
+  };
   const modulesByPath = new Map();
   const pathsByKey = new Map();
   const modules = [];
@@ -302,7 +319,13 @@ export function collectModuleGraph(entryPath, options = {}) {
     }
 
     modules.push(
-      splitModuleSource(filePath, moduleKey, analysis.source, rootDirectory),
+      splitModuleSource(
+        filePath,
+        moduleKey,
+        analysis.source,
+        rootDirectory,
+        versionMetadata,
+      ),
     );
   }
 
@@ -313,9 +336,36 @@ export function collectModuleGraph(entryPath, options = {}) {
   };
 }
 
+export function mergeModuleGraphs(graphs) {
+  const modules = new Map();
+
+  for (const graph of graphs) {
+    for (const sourceModule of graph.manifest.modules) {
+      let module = modules.get(sourceModule.key);
+      if (!module) {
+        module = {
+          key: sourceModule.key,
+          description: sourceModule.description,
+          versions: [],
+        };
+        modules.set(sourceModule.key, module);
+      }
+      module.versions.push(...sourceModule.versions);
+    }
+  }
+
+  return {
+    modules: [...modules.values()],
+  };
+}
+
 export function importModuleDatabase(options) {
   const graph = collectModuleGraph(options.entryPath, {
     moduleKey: options.moduleKey,
+    version: options.version,
+    tag: options.tag,
+    sourceRevision: options.sourceRevision,
+    createdAt: options.createdAt,
   });
   buildDatabase(options.databasePath, graph.manifest, {
     overwrite: options.overwrite,

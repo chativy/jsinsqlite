@@ -11,11 +11,9 @@ class SourceEntryError extends Error {
   }
 }
 
-function loadModuleGraph(db, moduleKey) {
+function loadModuleGraph(db, moduleKey, requestedVersion) {
   const module = db
-    .prepare(
-      "SELECT id, key, format, source_path FROM modules WHERE key = ?",
-    )
+    .prepare("SELECT id, key FROM modules WHERE key = ?")
     .get(moduleKey);
   if (!module) {
     throw new SourceEntryError(
@@ -24,11 +22,48 @@ function loadModuleGraph(db, moduleKey) {
     );
   }
 
+  const selectedVersion = requestedVersion
+    ? db
+        .prepare(
+          `
+            SELECT id, version, tag, source_revision, format, source_path,
+                   content_hash, created_at
+            FROM module_versions
+            WHERE module_id = ? AND version = ?
+          `,
+        )
+        .get(module.id, requestedVersion)
+    : db
+        .prepare(
+          `
+            SELECT id, version, tag, source_revision, format, source_path,
+                   content_hash, created_at
+            FROM module_versions
+            WHERE module_id = ?
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+          `,
+        )
+        .get(module.id);
+  if (!selectedVersion) {
+    throw new SourceEntryError(
+      "MODULE_VERSION_NOT_FOUND",
+      requestedVersion
+        ? `source module version not found: ${moduleKey}@${requestedVersion}`
+        : `source module has no versions: ${moduleKey}`,
+    );
+  }
+
   const entries = db
     .prepare(
-      "SELECT id, key, kind, source FROM entries WHERE module_id = ? ORDER BY id",
+      `
+        SELECT id, key, kind, source
+        FROM entries
+        WHERE module_version_id = ?
+        ORDER BY id
+      `,
     )
-    .all(module.id);
+    .all(selectedVersion.id);
   const entriesById = new Map(entries.map((entry) => [entry.id, entry]));
 
   const roots = entries.filter((entry) => entry.kind === ROOT_ENTRY_KIND);
@@ -46,10 +81,10 @@ function loadModuleGraph(db, moduleKey) {
         SELECT refs.from_entry_id, refs.slot, refs.to_entry_id
         FROM entry_refs AS refs
         JOIN entries AS source_entry ON source_entry.id = refs.from_entry_id
-        WHERE source_entry.module_id = ?
+        WHERE source_entry.module_version_id = ?
       `,
     )
-    .all(module.id);
+    .all(selectedVersion.id);
 
   for (const row of rows) {
     if (!refsByEntry.has(row.from_entry_id)) {
@@ -60,6 +95,7 @@ function loadModuleGraph(db, moduleKey) {
 
   return {
     module,
+    version: selectedVersion,
     entries,
     entriesById,
     refsByEntry,
@@ -155,8 +191,8 @@ function createRenderer(graph, moduleKey) {
   return renderEntry;
 }
 
-export function compileModuleRecord(db, moduleKey = "main") {
-  const graph = loadModuleGraph(db, moduleKey);
+export function compileModuleRecord(db, moduleKey = "main", version) {
+  const graph = loadModuleGraph(db, moduleKey, version);
   const renderEntry = createRenderer(graph, moduleKey);
 
   // Validate every stored entry, including definitions not reachable from main.
@@ -166,27 +202,36 @@ export function compileModuleRecord(db, moduleKey = "main") {
 
   return {
     moduleKey,
-    format: graph.module.format,
-    sourcePath: graph.module.source_path,
+    version: graph.version.version,
+    tag: graph.version.tag,
+    sourceRevision: graph.version.source_revision,
+    contentHash: graph.version.content_hash,
+    createdAt: graph.version.created_at,
+    format: graph.version.format,
+    sourcePath: graph.version.source_path,
     source: renderEntry(graph.root),
   };
 }
 
-export function compileModule(db, moduleKey = "main") {
-  return compileModuleRecord(db, moduleKey).source;
+export function compileModule(db, moduleKey = "main", version) {
+  return compileModuleRecord(db, moduleKey, version).source;
 }
 
-export function compileModuleFileRecord(databasePath, moduleKey = "main") {
+export function compileModuleFileRecord(
+  databasePath,
+  moduleKey = "main",
+  version,
+) {
   const db = openSourceDatabase(databasePath);
   try {
-    return compileModuleRecord(db, moduleKey);
+    return compileModuleRecord(db, moduleKey, version);
   } finally {
     db.close();
   }
 }
 
-export function compileModuleFile(databasePath, moduleKey = "main") {
-  return compileModuleFileRecord(databasePath, moduleKey).source;
+export function compileModuleFile(databasePath, moduleKey = "main", version) {
+  return compileModuleFileRecord(databasePath, moduleKey, version).source;
 }
 
 export { SourceEntryError };

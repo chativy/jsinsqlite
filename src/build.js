@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -56,96 +57,158 @@ export function validateManifest(input) {
     }
     moduleKeys.add(key);
 
-    if (!Array.isArray(rawModule.entries) || rawModule.entries.length === 0) {
-      throw new Error(`${modulePath}.entries must be a non-empty array`);
+    const rawVersions = rawModule.versions ?? [
+      {
+        version: rawModule.version ?? "local",
+        tag: rawModule.tag,
+        sourceRevision: rawModule.sourceRevision,
+        createdAt: rawModule.createdAt,
+        format: rawModule.format,
+        sourcePath: rawModule.sourcePath,
+        entries: rawModule.entries,
+      },
+    ];
+    if (!Array.isArray(rawVersions) || rawVersions.length === 0) {
+      throw new Error(`${modulePath}.versions must be a non-empty array`);
     }
 
-    const entryKeys = new Set();
-    const entries = rawModule.entries.map((rawEntry, entryIndex) => {
-      const entryPath = `${modulePath}.entries[${entryIndex}]`;
-      if (!isPlainObject(rawEntry)) {
-        throw new Error(`${entryPath} must be an object`);
+    const versionKeys = new Set();
+    const versions = rawVersions.map((rawVersion, versionIndex) => {
+      const versionPath = `${modulePath}.versions[${versionIndex}]`;
+      if (!isPlainObject(rawVersion)) {
+        throw new Error(`${versionPath} must be an object`);
       }
 
-      const entryKey = requireString(rawEntry.key, `${entryPath}.key`);
-      if (entryKeys.has(entryKey)) {
-        throw new Error(`duplicate entry key in module ${key}: ${entryKey}`);
+      const version = requireString(rawVersion.version, `${versionPath}.version`);
+      if (versionKeys.has(version)) {
+        throw new Error(`duplicate version in module ${key}: ${version}`);
       }
-      entryKeys.add(entryKey);
+      versionKeys.add(version);
 
-      const kind = requireString(rawEntry.kind, `${entryPath}.kind`);
-      if (!ENTRY_KINDS.has(kind)) {
+      if (
+        !Array.isArray(rawVersion.entries) ||
+        rawVersion.entries.length === 0
+      ) {
+        throw new Error(`${versionPath}.entries must be a non-empty array`);
+      }
+
+      const entryKeys = new Set();
+      const entries = rawVersion.entries.map((rawEntry, entryIndex) => {
+        const entryPath = `${versionPath}.entries[${entryIndex}]`;
+        if (!isPlainObject(rawEntry)) {
+          throw new Error(`${entryPath} must be an object`);
+        }
+
+        const entryKey = requireString(rawEntry.key, `${entryPath}.key`);
+        if (entryKeys.has(entryKey)) {
+          throw new Error(
+            `duplicate entry key in module ${key}/${version}: ${entryKey}`,
+          );
+        }
+        entryKeys.add(entryKey);
+
+        const kind = requireString(rawEntry.kind, `${entryPath}.kind`);
+        if (!ENTRY_KINDS.has(kind)) {
+          throw new Error(
+            `${entryPath}.kind must be one of: ${[...ENTRY_KINDS].join(", ")}`,
+          );
+        }
+
+        const source = optionalString(rawEntry.source, `${entryPath}.source`);
+        const rawRefs = rawEntry.refs ?? [];
+        if (!Array.isArray(rawRefs)) {
+          throw new Error(`${entryPath}.refs must be an array`);
+        }
+
+        const slots = new Set();
+        const refs = rawRefs.map((rawRef, refIndex) => {
+          const refPath = `${entryPath}.refs[${refIndex}]`;
+          if (!isPlainObject(rawRef)) {
+            throw new Error(`${refPath} must be an object`);
+          }
+          if (!Number.isSafeInteger(rawRef.slot) || rawRef.slot < 0) {
+            throw new Error(`${refPath}.slot must be a non-negative integer`);
+          }
+          if (slots.has(rawRef.slot)) {
+            throw new Error(
+              `${entryPath} has more than one ref for slot ${rawRef.slot}`,
+            );
+          }
+          slots.add(rawRef.slot);
+
+          return {
+            slot: rawRef.slot,
+            entry: requireString(rawRef.entry, `${refPath}.entry`),
+          };
+        });
+
+        return { key: entryKey, kind, source, refs };
+      });
+
+      const roots = entries.filter((entry) => entry.kind === ROOT_ENTRY_KIND);
+      if (roots.length !== 1 || roots[0].key !== ROOT_ENTRY_KEY) {
         throw new Error(
-          `${entryPath}.kind must be one of: ${[...ENTRY_KINDS].join(", ")}`,
+          `${versionPath} must contain exactly one kind='${ROOT_ENTRY_KIND}' entry named '${ROOT_ENTRY_KEY}'`,
         );
       }
 
-      const source = optionalString(rawEntry.source, `${entryPath}.source`);
-      const rawRefs = rawEntry.refs ?? [];
-      if (!Array.isArray(rawRefs)) {
-        throw new Error(`${entryPath}.refs must be an array`);
+      for (const entry of entries) {
+        for (const ref of entry.refs) {
+          if (!entryKeys.has(ref.entry)) {
+            throw new Error(
+              `entry ${key}/${version}/${entry.key} references missing entry ${key}/${version}/${ref.entry}`,
+            );
+          }
+        }
       }
 
-      const slots = new Set();
-      const refs = rawRefs.map((rawRef, refIndex) => {
-        const refPath = `${entryPath}.refs[${refIndex}]`;
-        if (!isPlainObject(rawRef)) {
-          throw new Error(`${refPath} must be an object`);
-        }
-        if (!Number.isSafeInteger(rawRef.slot) || rawRef.slot < 0) {
-          throw new Error(`${refPath}.slot must be a non-negative integer`);
-        }
-        if (slots.has(rawRef.slot)) {
-          throw new Error(
-            `${entryPath} has more than one ref for slot ${rawRef.slot}`,
-          );
-        }
-        slots.add(rawRef.slot);
+      const format = rawVersion.format ?? "js";
+      if (!MODULE_FORMATS.has(format)) {
+        throw new Error(
+          `${versionPath}.format must be one of: ${[...MODULE_FORMATS].join(", ")}`,
+        );
+      }
 
-        return {
-          slot: rawRef.slot,
-          entry: requireString(rawRef.entry, `${refPath}.entry`),
-        };
-      });
-
-      return { key: entryKey, kind, source, refs };
+      return {
+        version,
+        tag: optionalString(rawVersion.tag, `${versionPath}.tag`),
+        sourceRevision: optionalString(
+          rawVersion.sourceRevision,
+          `${versionPath}.sourceRevision`,
+        ),
+        createdAt: optionalString(
+          rawVersion.createdAt,
+          `${versionPath}.createdAt`,
+        ),
+        format,
+        sourcePath: optionalString(
+          rawVersion.sourcePath,
+          `${versionPath}.sourcePath`,
+        ),
+        entries,
+      };
     });
-
-    const roots = entries.filter((entry) => entry.kind === ROOT_ENTRY_KIND);
-    if (roots.length !== 1 || roots[0].key !== ROOT_ENTRY_KEY) {
-      throw new Error(
-        `${modulePath} must contain exactly one kind='${ROOT_ENTRY_KIND}' entry named '${ROOT_ENTRY_KEY}'`,
-      );
-    }
-
-    for (const entry of entries) {
-      for (const ref of entry.refs) {
-        if (!entryKeys.has(ref.entry)) {
-          throw new Error(
-            `entry ${key}/${entry.key} references missing entry ${key}/${ref.entry}`,
-          );
-        }
-      }
-    }
 
     return {
       key,
       description: optionalString(rawModule.description, `${modulePath}.description`),
-      format: rawModule.format ?? "js",
-      sourcePath: optionalString(rawModule.sourcePath, `${modulePath}.sourcePath`),
-      entries,
+      versions,
     };
   });
 
-  for (const module of modules) {
-    if (!MODULE_FORMATS.has(module.format)) {
-      throw new Error(
-        `module ${module.key} format must be one of: ${[...MODULE_FORMATS].join(", ")}`,
-      );
-    }
-  }
-
   return { modules };
+}
+
+function contentHash(moduleKey, version) {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        module: moduleKey,
+        sourcePath: version.sourcePath,
+        entries: version.entries,
+      }),
+    )
+    .digest("hex");
 }
 
 function temporaryDatabasePath(databasePath) {
@@ -159,10 +222,18 @@ function temporaryDatabasePath(databasePath) {
 
 function writeValidatedManifest(db, manifest) {
   const insertModule = db.prepare(
-    "INSERT INTO modules(key, description, format, source_path) VALUES (?, ?, ?, ?)",
+    "INSERT INTO modules(key, description) VALUES (?, ?)",
+  );
+  const insertVersion = db.prepare(
+    `
+      INSERT INTO module_versions(
+        module_id, version, tag, source_revision, format, source_path,
+        content_hash, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `,
   );
   const insertEntry = db.prepare(
-    "INSERT INTO entries(module_id, key, kind, source) VALUES (?, ?, ?, ?)",
+    "INSERT INTO entries(module_version_id, key, kind, source) VALUES (?, ?, ?, ?)",
   );
   const insertRef = db.prepare(
     "INSERT INTO entry_refs(from_entry_id, slot, to_entry_id) VALUES (?, ?, ?)",
@@ -171,32 +242,41 @@ function writeValidatedManifest(db, manifest) {
   db.exec("BEGIN IMMEDIATE");
   try {
     for (const module of manifest.modules) {
-      const moduleResult = insertModule.run(
-        module.key,
-        module.description,
-        module.format,
-        module.sourcePath,
-      );
+      const moduleResult = insertModule.run(module.key, module.description);
       const moduleId = Number(moduleResult.lastInsertRowid);
-      const entryIds = new Map();
 
-      for (const entry of module.entries) {
-        const entryResult = insertEntry.run(
+      for (const version of module.versions) {
+        const versionResult = insertVersion.run(
           moduleId,
-          entry.key,
-          entry.kind,
-          entry.source,
+          version.version,
+          version.tag,
+          version.sourceRevision,
+          version.format,
+          version.sourcePath,
+          contentHash(module.key, version),
+          version.createdAt || new Date().toISOString(),
         );
-        entryIds.set(entry.key, Number(entryResult.lastInsertRowid));
-      }
+        const moduleVersionId = Number(versionResult.lastInsertRowid);
+        const entryIds = new Map();
 
-      for (const entry of module.entries) {
-        for (const ref of entry.refs) {
-          insertRef.run(
-            entryIds.get(entry.key),
-            ref.slot,
-            entryIds.get(ref.entry),
+        for (const entry of version.entries) {
+          const entryResult = insertEntry.run(
+            moduleVersionId,
+            entry.key,
+            entry.kind,
+            entry.source,
           );
+          entryIds.set(entry.key, Number(entryResult.lastInsertRowid));
+        }
+
+        for (const entry of version.entries) {
+          for (const ref of entry.refs) {
+            insertRef.run(
+              entryIds.get(entry.key),
+              ref.slot,
+              entryIds.get(ref.entry),
+            );
+          }
         }
       }
     }

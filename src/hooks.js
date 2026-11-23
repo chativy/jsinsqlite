@@ -26,6 +26,7 @@ function sqliteTarget(urlLike, parentURL) {
     url: url.href,
     databasePath,
     moduleKey: url.searchParams.get("module") ?? "main",
+    version: url.searchParams.get("version") ?? undefined,
   };
 }
 
@@ -50,6 +51,7 @@ function logicalSqliteTarget(specifier, parentURL) {
     url: url.href,
     databasePath: parent.databasePath,
     moduleKey,
+    version: parent.version,
   };
 }
 
@@ -72,6 +74,7 @@ export function load(url, context, nextLoad) {
   const compiled = compileModuleFileRecord(
     target.databasePath,
     target.moduleKey,
+    target.version,
   );
   return {
     format: compiled.format === "ts" ? "module-typescript" : "module",

@@ -49,19 +49,24 @@ test("buildDatabase writes modules, entries, and references", () => {
     try {
       assert.equal(
         db.prepare("SELECT value FROM jsqlite_meta").get().value,
-        "2",
+        "3",
       );
       assert.equal(
         db
           .prepare(
-            "SELECT description, format, source_path FROM modules WHERE key = 'main'",
+            `
+              SELECT modules.description, module_versions.format,
+                     module_versions.source_path
+              FROM modules
+              JOIN module_versions ON module_versions.module_id = modules.id
+              WHERE modules.key = 'main'
+            `,
           )
           .get().format,
         "ts",
       );
       assert.equal(
-        db.prepare("SELECT source_path FROM modules WHERE key = 'main'").get()
-          .source_path,
+        db.prepare("SELECT source_path FROM module_versions").get().source_path,
         "src/main.ts",
       );
       assert.equal(
@@ -98,7 +103,7 @@ test("validateManifest rejects references outside the same module", () => {
           },
         ],
       }),
-    /references missing entry main\/missing/,
+    /references missing entry main\/local\/missing/,
   );
 });
 

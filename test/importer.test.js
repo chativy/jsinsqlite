@@ -58,12 +58,12 @@ test("collectModuleGraph recursively imports local TypeScript dependencies", () 
     );
     assert.deepEqual(graph.packageImports, []);
     assert.deepEqual(
-      graph.manifest.modules[1].entries.map((entry) => entry.key),
+      graph.manifest.modules[1].versions[0].entries.map((entry) => entry.key),
       ["main", "Choice", "DEFAULT_PORT", "valueOf"],
     );
-    assert.equal(graph.manifest.modules[1].sourcePath, "main.ts");
+    assert.equal(graph.manifest.modules[1].versions[0].sourcePath, "main.ts");
     assert.match(
-      graph.manifest.modules[1].entries[0].source,
+      graph.manifest.modules[1].versions[0].entries[0].source,
       /from "jsqlite:dep"/,
     );
   } finally {

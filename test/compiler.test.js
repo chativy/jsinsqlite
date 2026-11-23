@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildDatabase } from "../src/build.js";
-import { compileModuleFile } from "../src/compiler.js";
+import {
+  compileModuleFile,
+  compileModuleFileRecord,
+} from "../src/compiler.js";
 
 function withDatabase(manifest, callback) {
   const directory = mkdtempSync(join(tmpdir(), "jsqlite-compile-"));
@@ -184,6 +187,73 @@ test("compileModuleFile reports reference cycles with their entry path", () => {
     assert.throws(
       () => compileModuleFile(databasePath),
       /main\/main -> main\/a -> main\/main/,
+    );
+  });
+});
+
+test("compileModuleFile selects an explicit version and defaults to latest", () => {
+  const manifest = {
+    modules: [
+      {
+        key: "main",
+        versions: [
+          {
+            version: "v1.0.0",
+            tag: "v1.0.0",
+            sourceRevision: "aaa",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            entries: [
+              {
+                key: "main",
+                kind: "module",
+                source: "export const value = 1;",
+              },
+            ],
+          },
+          {
+            version: "v1.1.0+bbb",
+            tag: "v1.1.0",
+            sourceRevision: "bbb",
+            createdAt: "2026-02-01T00:00:00.000Z",
+            entries: [
+              {
+                key: "main",
+                kind: "module",
+                source: "export const value = 2;",
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  withDatabase(manifest, (databasePath) => {
+    assert.equal(
+      compileModuleFile(databasePath, "main"),
+      "export const value = 2;",
+    );
+    assert.equal(
+      compileModuleFile(databasePath, "main", "v1.0.0"),
+      "export const value = 1;",
+    );
+    assert.deepEqual(
+      compileModuleFileRecord(databasePath, "main", "v1.0.0"),
+      {
+        moduleKey: "main",
+        version: "v1.0.0",
+        tag: "v1.0.0",
+        sourceRevision: "aaa",
+        contentHash: compileModuleFileRecord(
+          databasePath,
+          "main",
+          "v1.0.0",
+        ).contentHash,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        format: "js",
+        sourcePath: "",
+        source: "export const value = 1;",
+      },
     );
   });
 });

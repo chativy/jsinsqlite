@@ -9,7 +9,7 @@ import { importModuleDatabase } from "../src/importer.js";
 const USAGE = `Usage:
   jsqlite build <manifest.json> <source.sqlite> [--force]
   jsqlite import <entry.ts> <source.sqlite> [module-key] [--force]
-  jsqlite compile <source.sqlite> [module-key]
+  jsqlite compile <source.sqlite> [module-key] [version]
 
 Module keys default to "main". Use --force to replace an existing database.`;
 
@@ -37,7 +37,10 @@ function run(args) {
   if (command === "compile") {
     const databasePath = resolve(requireArgument(args, 1, "database path"));
     const moduleKey = args[2] ?? "main";
-    process.stdout.write(`${compileModuleFile(databasePath, moduleKey)}\n`);
+    const version = args[3];
+    process.stdout.write(
+      `${compileModuleFile(databasePath, moduleKey, version)}\n`,
+    );
     return;
   }
 
