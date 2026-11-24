@@ -1,5 +1,9 @@
 # jsinsqlite
 
+Imagine shipping an entire JavaScript application together with its
+`node_modules` as a single SQLite database file. `jsinsqlite` makes that
+possible.
+
 `jsinsqlite` stores versioned JavaScript and TypeScript source entries, runtime
 assets, and named entrypoints in SQLite. Node can import composed source modules
 directly from a database URL, or execute a complete asset bundle from a selected
