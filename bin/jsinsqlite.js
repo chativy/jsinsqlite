@@ -23,9 +23,9 @@ const USAGE = `Usage:
   jsinsqlite import --git <repo> <entry> <source.sqlite> [module-key] [--limit=5] [--history=path] [--force]
   jsinsqlite inspect modules <source.sqlite>
   jsinsqlite inspect versions <source.sqlite> [module-key]
+  jsinsqlite inspect entrypoints <source.sqlite> [module-key] [--version=tag]
   jsinsqlite inspect code <source.sqlite> <module-key> [version]
-  jsinsqlite entrypoints list <source.sqlite> [module-key] [--version=tag]
-  jsinsqlite entrypoints set <source.sqlite> <module-key> <name> --kind=asset|export --target=path-or-export [--version=tag]
+  jsinsqlite entrypoints add <source.sqlite> <module-key> <name> --kind=asset|export --target=path-or-export [--version=tag]
   jsinsqlite entrypoints remove <source.sqlite> <module-key> <name> [--version=tag]
   jsinsqlite run <source.sqlite> <entrypoint> [--version=tag] [--cwd=path] [--env=NAME=VALUE]... [-- arguments...]
   jsinsqlite call <source.sqlite> <module-key> <export> [--version=tag] [--cwd=path] [--env=NAME=VALUE]... [-- arguments...]
@@ -239,6 +239,19 @@ async function inspectCommand(args) {
     }
     return;
   }
+  if (subject === "entrypoints") {
+    const rows = listEntrypoints({
+      databasePath,
+      moduleKey: args[3]?.startsWith("--") ? undefined : args[3],
+      version: optionValue(args, "version"),
+    });
+    for (const row of rows) {
+      console.log(
+        `${row.name}\t${row.module}\t${row.version}\t${row.kind}\t${row.target}`,
+      );
+    }
+    return;
+  }
   if (subject === "code") {
     const moduleKey = requireArgument(args, 3, "module key");
     process.stdout.write(
@@ -252,20 +265,7 @@ async function inspectCommand(args) {
 async function entrypointsCommand(args) {
   const action = requireArgument(args, 1, "entrypoints action");
   const databasePath = resolve(requireArgument(args, 2, "database path"));
-  if (action === "list") {
-    const rows = listEntrypoints({
-      databasePath,
-      moduleKey: args[3]?.startsWith("--") ? undefined : args[3],
-      version: optionValue(args, "version"),
-    });
-    for (const row of rows) {
-      console.log(
-        `${row.name}\t${row.module}\t${row.version}\t${row.kind}\t${row.target}`,
-      );
-    }
-    return;
-  }
-  if (action === "set") {
+  if (action === "add") {
     const result = setEntrypoint({
       databasePath,
       moduleKey: requireArgument(args, 3, "module key"),

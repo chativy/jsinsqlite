@@ -51,7 +51,7 @@ test("CLI builds, inspects, configures, and runs an entrypoint", () => {
       [
         CLI_PATH.pathname,
         "entrypoints",
-        "set",
+        "add",
         databasePath,
         "lib",
         "formatTotal",
@@ -64,7 +64,7 @@ test("CLI builds, inspects, configures, and runs an entrypoint", () => {
 
     const list = spawnSync(
       process.execPath,
-      [CLI_PATH.pathname, "entrypoints", "list", databasePath, "lib"],
+      [CLI_PATH.pathname, "inspect", "entrypoints", databasePath, "lib"],
       { encoding: "utf8" },
     );
     assert.equal(list.status, 0, list.stderr);
