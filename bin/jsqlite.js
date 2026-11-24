@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { buildDatabase } from "../src/build.js";
-import { runBundledModule } from "../src/bundle-runner.js";
+import { runBundleEntry } from "../src/bundle-runner.js";
 import { compileModuleFile } from "../src/compiler.js";
 import { openSourceDatabase } from "../src/database.js";
 import { importGitVersions } from "../src/git-importer.js";
@@ -17,9 +17,8 @@ const USAGE = `Usage:
   jsqlite import-git <repo> <entry> <source.sqlite> [module-key] [--limit=5] [--history=path] [--force]
   jsqlite compile <source.sqlite> [module-key] [version]
   jsqlite versions <source.sqlite> [module-key]
-  jsqlite run <source.sqlite> <module-key> <export> [--version=tag] [--args=json-array]
-  jsqlite run-bundle <source.sqlite> <module-key> [--version=tag] [-- pi-arguments...]
-  jsqlite run-pi-code <source.sqlite> --deepseek-key=key [-- pi-arguments...]
+  jsqlite call <source.sqlite> <module-key> <export> [--version=tag] [--args=json-array]
+  jsqlite exec <source.sqlite> <module-key> <entrypoint> [--version=tag] [--cwd=path] [--env=NAME=VALUE]... [-- entrypoint-arguments...]
 
 Module keys default to "main". Use --force to replace an existing database.`;
 
@@ -34,16 +33,22 @@ function optionValue(args, name) {
   return args.find((argument) => argument.startsWith(prefix))?.slice(prefix.length);
 }
 
-function requiredOptionValue(args, name) {
-  const inline = optionValue(args, name);
-  if (inline !== undefined && inline !== "") return inline;
-
-  const index = args.indexOf(`--${name}`);
-  const value = index === -1 ? undefined : args[index + 1];
-  if (value === undefined || value.startsWith("--")) {
-    throw new Error(`missing --${name}`);
+function environmentOptions(args) {
+  const environment = {};
+  for (const argument of args) {
+    if (!argument.startsWith("--env=")) continue;
+    const assignment = argument.slice("--env=".length);
+    const separator = assignment.indexOf("=");
+    if (separator <= 0) {
+      throw new Error("--env must use NAME=VALUE");
+    }
+    const name = assignment.slice(0, separator);
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+      throw new Error(`invalid environment variable name: ${name}`);
+    }
+    environment[name] = assignment.slice(separator + 1);
   }
-  return value;
+  return environment;
 }
 
 async function runCommand(args) {
@@ -160,7 +165,7 @@ async function runCommand(args) {
     return;
   }
 
-  if (command === "run") {
+  if (command === "call") {
     const databasePath = resolve(requireArgument(args, 1, "database path"));
     const moduleKey = requireArgument(args, 2, "module key");
     const exportName = requireArgument(args, 3, "export name");
@@ -174,7 +179,7 @@ async function runCommand(args) {
     const url = pathToFileURL(databasePath);
     url.searchParams.set("module", moduleKey);
     if (version !== undefined) url.searchParams.set("version", version);
-    url.searchParams.set("run", `${process.pid}-${Date.now()}`);
+    url.searchParams.set("cache", `${process.pid}-${Date.now()}`);
     const loaded = await import(url.href);
     const entry = loaded[exportName];
     if (typeof entry !== "function") {
@@ -186,34 +191,18 @@ async function runCommand(args) {
     return;
   }
 
-  if (command === "run-bundle") {
+  if (command === "exec") {
     const databasePath = resolve(requireArgument(args, 1, "database path"));
     const moduleKey = requireArgument(args, 2, "module key");
-    const result = await runBundledModule({
+    const entryPath = requireArgument(args, 3, "entrypoint");
+    const result = await runBundleEntry({
       databasePath,
       moduleKey,
+      entryPath,
       version: optionValue(args, "version"),
+      cwd: optionValue(args, "cwd"),
+      env: environmentOptions(args),
       arguments: forwardedArguments,
-    });
-    if (result.code !== null) process.exitCode = result.code;
-    return;
-  }
-
-  if (command === "run-pi-code") {
-    const databasePath = resolve(requireArgument(args, 1, "database path"));
-    const deepseekKey =
-      optionValue(args, "deepseek-key") ?? process.env.DEEPSEEK_API_KEY;
-    if (!deepseekKey) {
-      requiredOptionValue(args, "deepseek-key");
-    }
-    const result = await runBundledModule({
-      databasePath,
-      moduleKey: "pi-code",
-      version: optionValue(args, "version"),
-      arguments: forwardedArguments,
-      env: {
-        DEEPSEEK_API_KEY: deepseekKey,
-      },
     });
     if (result.code !== null) process.exitCode = result.code;
     return;

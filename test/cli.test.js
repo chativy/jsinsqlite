@@ -41,7 +41,7 @@ test("CLI builds a database and prints compiled module source", () => {
       process.execPath,
       [
         CLI_PATH.pathname,
-        "run",
+        "call",
         databasePath,
         "lib",
         "formatTotal",

@@ -16,7 +16,7 @@ test("bundle files are stored in sqlite and run from the extracted tree", () => 
   try {
     importBundleDatabase({
       databasePath,
-      moduleKey: "pi-code",
+      moduleKey: "app",
       entryPath: "dist/bundle/cli.js",
       version: "v1.0.0",
       files: [
@@ -29,7 +29,7 @@ test("bundle files are stored in sqlite and run from the extracted tree", () => 
         },
         {
           path: "package.json",
-          content: Buffer.from('{"name":"pi-code"}'),
+          content: Buffer.from('{"name":"app"}'),
           mode: 0o644,
         },
       ],
@@ -49,9 +49,10 @@ test("bundle files are stored in sqlite and run from the extracted tree", () => 
       process.execPath,
       [
         CLI_PATH.pathname,
-        "run-bundle",
+        "exec",
         databasePath,
-        "pi-code",
+        "app",
+        "dist/bundle/cli.js",
         "--",
         "--help",
       ],
@@ -64,21 +65,21 @@ test("bundle files are stored in sqlite and run from the extracted tree", () => 
   }
 });
 
-test("run-pi-code passes a DeepSeek key through the child environment", () => {
-  const directory = mkdtempSync(join(tmpdir(), "jsqlite-deepseek-"));
+test("exec passes generic environment variables to the selected entrypoint", () => {
+  const directory = mkdtempSync(join(tmpdir(), "jsqlite-exec-"));
   const databasePath = join(directory, "bundle.sqlite");
 
   try {
     importBundleDatabase({
       databasePath,
-      moduleKey: "pi-code",
-      entryPath: "dist/bundle/cli.js",
+      moduleKey: "app",
+      entryPath: "dist/env.js",
       version: "v1.0.0",
       files: [
         {
-          path: "dist/bundle/cli.js",
+          path: "dist/env.js",
           content: Buffer.from(
-            'console.log(process.env.DEEPSEEK_API_KEY ?? "missing");',
+            'console.log(process.env.TEST_SECRET ?? "missing");',
           ),
           mode: 0o755,
         },
@@ -89,9 +90,11 @@ test("run-pi-code passes a DeepSeek key through the child environment", () => {
       process.execPath,
       [
         CLI_PATH.pathname,
-        "run-pi-code",
+        "exec",
         databasePath,
-        "--deepseek-key=test-secret",
+        "app",
+        "dist/env.js",
+        "--env=TEST_SECRET=test-secret",
         "--",
         "--version",
       ],
@@ -99,7 +102,7 @@ test("run-pi-code passes a DeepSeek key through the child environment", () => {
     );
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stdout.trim(), "test-secret");
-    assert.doesNotMatch(result.stdout, /--deepseek-key/);
+    assert.doesNotMatch(result.stdout, /--env/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

@@ -17,12 +17,6 @@
   },
   "scripts": {
     "demo": "node bin/jsqlite.js build examples/demo.manifest.json .tmp/demo.sqlite --force && node --import ./src/register.js examples/demo.mjs",
-    "demo:pi": "node --import ./src/register.js examples/pi.mjs",
-    "run:pi": "node bin/jsqlite.js run examples/pi.sqlite pi isPiName --args='[\"work\"]'",
-    "run:deepseek": "node bin/jsqlite.js run-pi-code examples/pi-code.sqlite",
-    "run:pi-code": "node bin/jsqlite.js run-bundle examples/pi-code.sqlite pi-code",
-    "run:pi-code:help": "node bin/jsqlite.js run-bundle examples/pi-code.sqlite pi-code -- --help",
-    "versions:pi": "node bin/jsqlite.js versions examples/pi.sqlite pi",
     "test": "node --test"
   },
   "dependencies": {

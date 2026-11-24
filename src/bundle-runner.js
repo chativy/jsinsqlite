@@ -60,7 +60,7 @@ function extractBundle(root, entryPath, assets) {
   return entry;
 }
 
-export async function runBundledModule(options) {
+export async function runBundleEntry(options) {
   const db = openSourceDatabase(options.databasePath);
   let version;
   let assets;
@@ -84,15 +84,20 @@ export async function runBundledModule(options) {
   if (assets.length === 0) {
     throw new Error(`module is a source module, not a runnable bundle: ${options.moduleKey}`);
   }
+  if (!assets.some((asset) => asset.path === options.entryPath)) {
+    throw new Error(
+      `bundle entry not found: ${options.moduleKey}/${options.entryPath}`,
+    );
+  }
 
   const root = mkdtempSync(join(tmpdir(), "jsqlite-bundle-"));
   try {
-    const entry = extractBundle(root, version.source_path, assets);
+    const entry = extractBundle(root, options.entryPath, assets);
     const child = spawn(process.execPath, [entry, ...options.arguments], {
       cwd: options.cwd ?? process.cwd(),
       env: {
         ...process.env,
-        PI_PACKAGE_DIR: root,
+        JSqlite_BUNDLE_ROOT: root,
         ...options.env,
       },
       stdio: "inherit",
