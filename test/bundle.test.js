@@ -49,10 +49,9 @@ test("bundle files are stored in sqlite and run from the extracted tree", () => 
       process.execPath,
       [
         CLI_PATH.pathname,
-        "exec",
+        "run",
         databasePath,
         "app",
-        "dist/bundle/cli.js",
         "--",
         "--help",
       ],
@@ -60,12 +59,28 @@ test("bundle files are stored in sqlite and run from the extracted tree", () => 
     );
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stdout.trim(), "bundle --help");
+
+    const direct = spawnSync(
+      process.execPath,
+      [
+        CLI_PATH.pathname,
+        "exec",
+        databasePath,
+        "app",
+        "dist/bundle/cli.js",
+        "--",
+        "--direct",
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(direct.status, 0, direct.stderr);
+    assert.equal(direct.stdout.trim(), "bundle --direct");
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
 });
 
-test("exec passes generic environment variables to the selected entrypoint", () => {
+test("run passes generic environment variables to the selected entrypoint", () => {
   const directory = mkdtempSync(join(tmpdir(), "jsqlite-exec-"));
   const databasePath = join(directory, "bundle.sqlite");
 
@@ -90,10 +105,9 @@ test("exec passes generic environment variables to the selected entrypoint", () 
       process.execPath,
       [
         CLI_PATH.pathname,
-        "exec",
+        "run",
         databasePath,
         "app",
-        "dist/env.js",
         "--env=TEST_SECRET=test-secret",
         "--",
         "--version",

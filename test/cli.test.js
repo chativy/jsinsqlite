@@ -8,7 +8,7 @@ import { test } from "node:test";
 const CLI_PATH = new URL("../bin/jsqlite.js", import.meta.url);
 const DEMO_MANIFEST = new URL("../examples/demo.manifest.json", import.meta.url);
 
-test("CLI builds a database and prints compiled module source", () => {
+test("CLI builds, inspects, configures, and runs an entrypoint", () => {
   const directory = mkdtempSync(join(tmpdir(), "jsqlite-cli-"));
   const databasePath = join(directory, "demo.sqlite");
 
@@ -29,7 +29,7 @@ test("CLI builds a database and prints compiled module source", () => {
 
     const compile = spawnSync(
       process.execPath,
-      [CLI_PATH.pathname, "compile", databasePath, "main"],
+      [CLI_PATH.pathname, "inspect", "code", databasePath, "main"],
       { encoding: "utf8" },
     );
     assert.equal(compile.status, 0, compile.stderr);
@@ -37,7 +37,39 @@ test("CLI builds a database and prints compiled module source", () => {
     assert.match(compile.stdout, /total\(\) \{/);
     assert.match(compile.stdout, /formatTotal\(order\.total\(\)\)/);
 
+    const set = spawnSync(
+      process.execPath,
+      [
+        CLI_PATH.pathname,
+        "entrypoints",
+        "set",
+        databasePath,
+        "lib",
+        "formatTotal",
+        "--kind=export",
+        "--target=formatTotal",
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(set.status, 0, set.stderr);
+
+    const list = spawnSync(
+      process.execPath,
+      [CLI_PATH.pathname, "entrypoints", "list", databasePath, "lib"],
+      { encoding: "utf8" },
+    );
+    assert.equal(list.status, 0, list.stderr);
+    assert.match(list.stdout, /formatTotal\tlib\tlocal\texport\tformatTotal/);
+
     const run = spawnSync(
+      process.execPath,
+      [CLI_PATH.pathname, "run", databasePath, "formatTotal", "--", "42.5"],
+      { encoding: "utf8" },
+    );
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout.trim(), "Total: $42.50");
+
+    const call = spawnSync(
       process.execPath,
       [
         CLI_PATH.pathname,
@@ -45,12 +77,13 @@ test("CLI builds a database and prints compiled module source", () => {
         databasePath,
         "lib",
         "formatTotal",
-        `--args=${JSON.stringify([42.5])}`,
+        "--",
+        "10",
       ],
       { encoding: "utf8" },
     );
-    assert.equal(run.status, 0, run.stderr);
-    assert.equal(run.stdout.trim(), "Total: $42.50");
+    assert.equal(call.status, 0, call.stderr);
+    assert.equal(call.stdout.trim(), "Total: $10.00");
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

@@ -223,6 +223,53 @@ export function validateManifest(input) {
         );
       }
 
+      const sourcePath = optionalString(
+        rawVersion.sourcePath,
+        `${versionPath}.sourcePath`,
+      );
+      const rawEntrypoints =
+        rawVersion.entrypoints ??
+        (assets.length > 0 && sourcePath
+          ? [{ name: key, kind: "asset", target: sourcePath }]
+          : []);
+      if (!Array.isArray(rawEntrypoints)) {
+        throw new Error(`${versionPath}.entrypoints must be an array`);
+      }
+      const entrypointNames = new Set();
+      const entrypoints = rawEntrypoints.map((rawEntrypoint, index) => {
+        const entrypointPath = `${versionPath}.entrypoints[${index}]`;
+        if (!isPlainObject(rawEntrypoint)) {
+          throw new Error(`${entrypointPath} must be an object`);
+        }
+        const name = requireString(
+          rawEntrypoint.name,
+          `${entrypointPath}.name`,
+        );
+        if (entrypointNames.has(name)) {
+          throw new Error(
+            `duplicate entrypoint name in module ${key}/${version}: ${name}`,
+          );
+        }
+        entrypointNames.add(name);
+        const kind = requireString(
+          rawEntrypoint.kind,
+          `${entrypointPath}.kind`,
+        );
+        if (kind !== "asset" && kind !== "export") {
+          throw new Error(`${entrypointPath}.kind must be asset or export`);
+        }
+        const target = requireString(
+          rawEntrypoint.target,
+          `${entrypointPath}.target`,
+        );
+        if (kind === "asset" && !assetPaths.has(target)) {
+          throw new Error(
+            `${entrypointPath}.target is not an asset: ${target}`,
+          );
+        }
+        return { name, kind, target };
+      });
+
       return {
         version,
         tag: optionalString(rawVersion.tag, `${versionPath}.tag`),
@@ -235,11 +282,9 @@ export function validateManifest(input) {
           `${versionPath}.createdAt`,
         ),
         format,
-        sourcePath: optionalString(
-          rawVersion.sourcePath,
-          `${versionPath}.sourcePath`,
-        ),
+        sourcePath,
         assets,
+        entrypoints,
         entries,
       };
     });
@@ -261,6 +306,7 @@ function contentHash(moduleKey, version) {
         module: moduleKey,
         sourcePath: version.sourcePath,
         entries: version.entries,
+        entrypoints: version.entrypoints,
         assets: version.assets.map((asset) => ({
           path: asset.path,
           mode: asset.mode,
@@ -304,6 +350,12 @@ function writeValidatedManifest(db, manifest) {
   const insertAsset = db.prepare(
     `
       INSERT INTO module_assets(module_version_id, path, content, mode)
+      VALUES (?, ?, ?, ?)
+    `,
+  );
+  const insertEntrypoint = db.prepare(
+    `
+      INSERT INTO version_entrypoints(module_version_id, name, kind, target)
       VALUES (?, ?, ?, ?)
     `,
   );
@@ -364,6 +416,14 @@ function writeValidatedManifest(db, manifest) {
             asset.path,
             asset.content,
             asset.mode,
+          );
+        }
+        for (const entrypoint of version.entrypoints) {
+          insertEntrypoint.run(
+            moduleVersionId,
+            entrypoint.name,
+            entrypoint.kind,
+            entrypoint.target,
           );
         }
       }

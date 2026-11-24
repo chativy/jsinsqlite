@@ -42,6 +42,18 @@ const SCHEMA_SQL = `
     PRIMARY KEY (module_version_id, path)
   ) STRICT;
 
+  CREATE TABLE version_entrypoints (
+    module_version_id INTEGER NOT NULL
+      REFERENCES module_versions(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('asset', 'export')),
+    target TEXT NOT NULL,
+    PRIMARY KEY (module_version_id, name)
+  ) STRICT;
+
+  CREATE INDEX version_entrypoints_name
+    ON version_entrypoints(name);
+
   CREATE TABLE entries (
     id INTEGER PRIMARY KEY,
     module_version_id INTEGER NOT NULL REFERENCES module_versions(id) ON DELETE CASCADE,

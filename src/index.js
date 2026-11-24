@@ -10,6 +10,12 @@ export {
 } from "./compiler.js";
 export { openSourceDatabase } from "./database.js";
 export {
+  listEntrypoints,
+  removeEntrypoint,
+  resolveEntrypoint,
+  setEntrypoint,
+} from "./entrypoints.js";
+export {
   collectGitVersions,
   importGitVersions,
 } from "./git-importer.js";
