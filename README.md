@@ -5,7 +5,42 @@ assets, and named entrypoints in SQLite. Node can import composed source modules
 directly from a database URL, or execute a complete asset bundle from a selected
 SQLite version.
 
-Run the test suite and demo:
+## Installation
+
+Node.js 22.18 or newer is required.
+
+Install the CLI globally:
+
+```bash
+npm install --global jsinsqlite
+jsinsqlite inspect modules app.sqlite
+```
+
+Install it as a project dependency:
+
+```bash
+npm install jsinsqlite
+npx jsinsqlite inspect modules app.sqlite
+```
+
+Register the SQLite ESM loader in a Node.js application:
+
+```bash
+node --import jsinsqlite/register app.mjs
+```
+
+Import the programmatic API:
+
+```js
+import {
+  buildDatabase,
+  compileModuleFile,
+  importModuleDatabase,
+  validateManifest,
+} from "jsinsqlite";
+```
+
+From a source checkout, run the test suite and demo:
 
 ```bash
 npm test
