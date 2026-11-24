@@ -37,6 +37,15 @@ test("CLI builds, inspects, configures, and runs an entrypoint", () => {
     assert.match(compile.stdout, /total\(\) \{/);
     assert.match(compile.stdout, /formatTotal\(order\.total\(\)\)/);
 
+    const modules = spawnSync(
+      process.execPath,
+      [CLI_PATH.pathname, "inspect", "modules", databasePath],
+      { encoding: "utf8" },
+    );
+    assert.equal(modules.status, 0, modules.stderr);
+    assert.match(modules.stdout, /^main\tlocal\t1\t/m);
+    assert.match(modules.stdout, /^lib\tlocal\t1\t/m);
+
     const set = spawnSync(
       process.execPath,
       [

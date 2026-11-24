@@ -21,6 +21,7 @@ const USAGE = `Usage:
   jsinsqlite build <manifest.json> <source.sqlite> [--force]
   jsinsqlite import <entry.ts> <source.sqlite> [module-key] [--force]
   jsinsqlite import --git <repo> <entry> <source.sqlite> [module-key] [--limit=5] [--history=path] [--force]
+  jsinsqlite inspect modules <source.sqlite>
   jsinsqlite inspect versions <source.sqlite> [module-key]
   jsinsqlite inspect code <source.sqlite> <module-key> [version]
   jsinsqlite entrypoints list <source.sqlite> [module-key] [--version=tag]
@@ -179,6 +180,38 @@ async function execCommand(args, forwardedArguments) {
 async function inspectCommand(args) {
   const subject = requireArgument(args, 1, "inspect subject");
   const databasePath = resolve(requireArgument(args, 2, "database path"));
+  if (subject === "modules") {
+    const db = openSourceDatabase(databasePath);
+    try {
+      const rows = db
+        .prepare(
+          `
+            SELECT modules.key, modules.description,
+                   module_versions.version AS head,
+                   count(history.id) AS versions
+            FROM modules
+            JOIN module_heads
+              ON module_heads.module_id = modules.id
+            JOIN module_versions
+              ON module_versions.id = module_heads.module_version_id
+            JOIN module_versions AS history
+              ON history.module_id = modules.id
+            GROUP BY modules.id, modules.key, modules.description,
+                     module_versions.version
+            ORDER BY modules.key
+          `,
+        )
+        .all();
+      for (const row of rows) {
+        console.log(
+          `${row.key}\t${row.head}\t${row.versions}\t${row.description}`,
+        );
+      }
+    } finally {
+      db.close();
+    }
+    return;
+  }
   if (subject === "versions") {
     const moduleKey = args[3];
     const db = openSourceDatabase(databasePath);
