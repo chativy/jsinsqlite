@@ -2,6 +2,22 @@
   "name": "jsinsqlite",
   "version": "0.1.0",
   "description": "Compose Node.js ESM modules from entries stored in SQLite",
+  "author": "Buttonizer <buttonizer@buttonizer.app>",
+  "homepage": "https://github.com/chativy/jsinsqlite#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chativy/jsinsqlite.git"
+  },
+  "bugs": {
+    "url": "https://github.com/chativy/jsinsqlite/issues"
+  },
+  "keywords": [
+    "sqlite",
+    "esm",
+    "typescript",
+    "module-loader",
+    "source-storage"
+  ],
   "type": "module",
   "exports": {
     ".": "./src/index.js",
@@ -10,7 +26,7 @@
     "./schema": "./src/schema.js"
   },
   "bin": {
-    "jsinsqlite": "./bin/jsinsqlite.js"
+    "jsinsqlite": "bin/jsinsqlite.js"
   },
   "files": [
     "bin",
