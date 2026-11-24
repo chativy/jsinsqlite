@@ -5,11 +5,11 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 
-const CLI_PATH = new URL("../bin/jsqlite.js", import.meta.url);
+const CLI_PATH = new URL("../bin/jsinsqlite.js", import.meta.url);
 const DEMO_MANIFEST = new URL("../examples/demo.manifest.json", import.meta.url);
 
 test("CLI builds, inspects, configures, and runs an entrypoint", () => {
-  const directory = mkdtempSync(join(tmpdir(), "jsqlite-cli-"));
+  const directory = mkdtempSync(join(tmpdir(), "jsinsqlite-cli-"));
   const databasePath = join(directory, "demo.sqlite");
 
   try {

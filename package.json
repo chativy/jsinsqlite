@@ -1,5 +1,5 @@
 {
-  "name": "jsqlite",
+  "name": "jsinsqlite",
   "version": "0.1.0",
   "description": "Compose Node.js ESM modules from entries stored in SQLite",
   "type": "module",
@@ -10,13 +10,13 @@
     "./schema": "./src/schema.js"
   },
   "bin": {
-    "jsqlite": "./bin/jsqlite.js"
+    "jsinsqlite": "./bin/jsinsqlite.js"
   },
   "engines": {
     "node": ">=22.18.0"
   },
   "scripts": {
-    "demo": "node bin/jsqlite.js build examples/demo.manifest.json .tmp/demo.sqlite --force && node --import ./src/register.js examples/demo.mjs",
+    "demo": "node bin/jsinsqlite.js build examples/demo.manifest.json .tmp/demo.sqlite --force && node --import ./src/register.js examples/demo.mjs",
     "test": "node --test"
   },
   "dependencies": {

@@ -141,7 +141,7 @@ function analyzeImports(filePath, source, rootDirectory) {
   for (const specifierNode of importReferences(sourceFile)) {
     const specifier = specifierNode.text;
     if (!isRelativeSpecifier(specifier)) {
-      if (!isNodeBuiltin(specifier) && !specifier.startsWith("jsqlite:")) {
+      if (!isNodeBuiltin(specifier) && !specifier.startsWith("jsinsqlite:")) {
         packageImports.add(specifier);
       }
       continue;
@@ -156,7 +156,7 @@ function analyzeImports(filePath, source, rootDirectory) {
     edits.push({
       start: specifierNode.getStart(),
       end: specifierNode.end,
-      text: `${quote}jsqlite:${moduleKey}${quote}`,
+      text: `${quote}jsinsqlite:${moduleKey}${quote}`,
     });
   }
 

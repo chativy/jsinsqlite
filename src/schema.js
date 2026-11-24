@@ -3,7 +3,7 @@ import { SCHEMA_VERSION } from "./constants.js";
 const SCHEMA_SQL = `
   PRAGMA foreign_keys = ON;
 
-  CREATE TABLE jsqlite_meta (
+  CREATE TABLE jsinsqlite_meta (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   ) STRICT;
@@ -77,7 +77,7 @@ const SCHEMA_SQL = `
   CREATE INDEX entry_refs_to_entry
     ON entry_refs(to_entry_id);
 
-  INSERT INTO jsqlite_meta(key, value)
+  INSERT INTO jsinsqlite_meta(key, value)
   VALUES ('schema_version', '${SCHEMA_VERSION}');
 
   PRAGMA user_version = ${SCHEMA_VERSION};
@@ -89,13 +89,13 @@ export function initializeSchema(db) {
 
 export function assertSupportedSchema(db) {
   const row = db
-    .prepare("SELECT value FROM jsqlite_meta WHERE key = 'schema_version'")
+    .prepare("SELECT value FROM jsinsqlite_meta WHERE key = 'schema_version'")
     .get();
   const version = Number(row?.value);
 
   if (version !== SCHEMA_VERSION) {
     throw new Error(
-      `Unsupported jsqlite schema version: expected ${SCHEMA_VERSION}, got ${row?.value ?? "none"}`,
+      `Unsupported jsinsqlite schema version: expected ${SCHEMA_VERSION}, got ${row?.value ?? "none"}`,
     );
   }
 }

@@ -117,7 +117,7 @@ function collectSnapshotFiles(repository, revision, entryPath) {
 }
 
 function materializeSnapshot(files) {
-  const directory = mkdtempSync(join(tmpdir(), "jsqlite-git-"));
+  const directory = mkdtempSync(join(tmpdir(), "jsinsqlite-git-"));
   for (const [path, source] of files) {
     const target = join(directory, ...path.split("/"));
     mkdirSync(dirname(target), { recursive: true });

@@ -8,7 +8,7 @@ import { buildDatabase } from "../src/build.js";
 import "../src/register.js";
 
 test("Node imports modules directly from sqlite URLs", async () => {
-  const directory = mkdtempSync(join(tmpdir(), "jsqlite-loader-"));
+  const directory = mkdtempSync(join(tmpdir(), "jsinsqlite-loader-"));
   const databasePath = join(directory, "source.sqlite");
 
   try {
@@ -21,7 +21,7 @@ test("Node imports modules directly from sqlite URLs", async () => {
               key: "main",
               kind: "module",
               source: [
-                'import { factorial } from "jsqlite:lib";',
+                'import { factorial } from "jsinsqlite:lib";',
                 "",
                 "/* @ref:0 */",
                 "",
@@ -96,7 +96,7 @@ test("Node imports modules directly from sqlite URLs", async () => {
 });
 
 test("Node strips TypeScript source loaded from sqlite", async () => {
-  const directory = mkdtempSync(join(tmpdir(), "jsqlite-typescript-"));
+  const directory = mkdtempSync(join(tmpdir(), "jsinsqlite-typescript-"));
   const databasePath = join(directory, "source.sqlite");
 
   try {
@@ -110,7 +110,7 @@ test("Node strips TypeScript source loaded from sqlite", async () => {
               key: "main",
               kind: "module",
               source: [
-                'import { suffix } from "jsqlite:helper";',
+                'import { suffix } from "jsinsqlite:helper";',
                 "",
                 "export type Choice = { readonly name?: string };",
                 "export function isPiName(name: string): boolean {",
@@ -147,7 +147,7 @@ test("Node strips TypeScript source loaded from sqlite", async () => {
 });
 
 test("Node imports an explicit sqlite module version", async () => {
-  const directory = mkdtempSync(join(tmpdir(), "jsqlite-version-"));
+  const directory = mkdtempSync(join(tmpdir(), "jsinsqlite-version-"));
   const databasePath = join(directory, "source.sqlite");
 
   try {

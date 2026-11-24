@@ -18,17 +18,17 @@ import { importModuleDatabase } from "../src/importer.js";
 import "../src/register.js";
 
 const USAGE = `Usage:
-  jsqlite build <manifest.json> <source.sqlite> [--force]
-  jsqlite import <entry.ts> <source.sqlite> [module-key] [--force]
-  jsqlite import --git <repo> <entry> <source.sqlite> [module-key] [--limit=5] [--history=path] [--force]
-  jsqlite inspect versions <source.sqlite> [module-key]
-  jsqlite inspect code <source.sqlite> <module-key> [version]
-  jsqlite entrypoints list <source.sqlite> [module-key] [--version=tag]
-  jsqlite entrypoints set <source.sqlite> <module-key> <name> --kind=asset|export --target=path-or-export [--version=tag]
-  jsqlite entrypoints remove <source.sqlite> <module-key> <name> [--version=tag]
-  jsqlite run <source.sqlite> <entrypoint> [--version=tag] [--cwd=path] [--env=NAME=VALUE]... [-- arguments...]
-  jsqlite call <source.sqlite> <module-key> <export> [--version=tag] [--cwd=path] [--env=NAME=VALUE]... [-- arguments...]
-  jsqlite exec <source.sqlite> <module-key> <entrypoint-path> [--version=tag] [--cwd=path] [--env=NAME=VALUE]... [-- arguments...]
+  jsinsqlite build <manifest.json> <source.sqlite> [--force]
+  jsinsqlite import <entry.ts> <source.sqlite> [module-key] [--force]
+  jsinsqlite import --git <repo> <entry> <source.sqlite> [module-key] [--limit=5] [--history=path] [--force]
+  jsinsqlite inspect versions <source.sqlite> [module-key]
+  jsinsqlite inspect code <source.sqlite> <module-key> [version]
+  jsinsqlite entrypoints list <source.sqlite> [module-key] [--version=tag]
+  jsinsqlite entrypoints set <source.sqlite> <module-key> <name> --kind=asset|export --target=path-or-export [--version=tag]
+  jsinsqlite entrypoints remove <source.sqlite> <module-key> <name> [--version=tag]
+  jsinsqlite run <source.sqlite> <entrypoint> [--version=tag] [--cwd=path] [--env=NAME=VALUE]... [-- arguments...]
+  jsinsqlite call <source.sqlite> <module-key> <export> [--version=tag] [--cwd=path] [--env=NAME=VALUE]... [-- arguments...]
+  jsinsqlite exec <source.sqlite> <module-key> <entrypoint-path> [--version=tag] [--cwd=path] [--env=NAME=VALUE]... [-- arguments...]
 
 Versions default to the module head.`;
 

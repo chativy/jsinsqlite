@@ -7,10 +7,10 @@ import { test } from "node:test";
 import { DatabaseSync } from "node:sqlite";
 import { importBundleDatabase } from "../src/bundle-importer.js";
 
-const CLI_PATH = new URL("../bin/jsqlite.js", import.meta.url);
+const CLI_PATH = new URL("../bin/jsinsqlite.js", import.meta.url);
 
 test("bundle files are stored in sqlite and run from the extracted tree", () => {
-  const directory = mkdtempSync(join(tmpdir(), "jsqlite-bundle-test-"));
+  const directory = mkdtempSync(join(tmpdir(), "jsinsqlite-bundle-test-"));
   const databasePath = join(directory, "bundle.sqlite");
 
   try {
@@ -81,7 +81,7 @@ test("bundle files are stored in sqlite and run from the extracted tree", () => 
 });
 
 test("run passes generic environment variables to the selected entrypoint", () => {
-  const directory = mkdtempSync(join(tmpdir(), "jsqlite-exec-"));
+  const directory = mkdtempSync(join(tmpdir(), "jsinsqlite-exec-"));
   const databasePath = join(directory, "bundle.sqlite");
 
   try {

@@ -10,7 +10,7 @@ import {
 } from "../src/compiler.js";
 
 function withDatabase(manifest, callback) {
-  const directory = mkdtempSync(join(tmpdir(), "jsqlite-compile-"));
+  const directory = mkdtempSync(join(tmpdir(), "jsinsqlite-compile-"));
   const databasePath = join(directory, "source.sqlite");
   try {
     buildDatabase(databasePath, manifest);

@@ -12,7 +12,7 @@ import { compileModuleFile } from "../src/compiler.js";
 import "../src/register.js";
 
 function createSources() {
-  const directory = mkdtempSync(join(tmpdir(), "jsqlite-import-"));
+  const directory = mkdtempSync(join(tmpdir(), "jsinsqlite-import-"));
   const entryPath = join(directory, "main.ts");
   const dependencyPath = join(directory, "dep.ts");
 
@@ -64,7 +64,7 @@ test("collectModuleGraph recursively imports local TypeScript dependencies", () 
     assert.equal(graph.manifest.modules[1].versions[0].sourcePath, "main.ts");
     assert.match(
       graph.manifest.modules[1].versions[0].entries[0].source,
-      /from "jsqlite:dep"/,
+      /from "jsinsqlite:dep"/,
     );
   } finally {
     rmSync(sources.directory, { recursive: true, force: true });

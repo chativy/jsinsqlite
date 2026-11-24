@@ -32,7 +32,7 @@ function createManifest() {
 }
 
 test("buildDatabase writes modules, entries, and references", () => {
-  const directory = mkdtempSync(join(tmpdir(), "jsqlite-build-"));
+  const directory = mkdtempSync(join(tmpdir(), "jsinsqlite-build-"));
   const databasePath = join(directory, "source.sqlite");
 
   try {
@@ -48,8 +48,8 @@ test("buildDatabase writes modules, entries, and references", () => {
     const db = new DatabaseSync(databasePath, { readOnly: true });
     try {
       assert.equal(
-        db.prepare("SELECT value FROM jsqlite_meta").get().value,
-        "6",
+        db.prepare("SELECT value FROM jsinsqlite_meta").get().value,
+        "7",
       );
       assert.equal(
         db
@@ -108,7 +108,7 @@ test("validateManifest rejects references outside the same module", () => {
 });
 
 test("buildDatabase refuses to replace an existing database by default", () => {
-  const directory = mkdtempSync(join(tmpdir(), "jsqlite-build-"));
+  const directory = mkdtempSync(join(tmpdir(), "jsinsqlite-build-"));
   const databasePath = join(directory, "source.sqlite");
 
   try {

@@ -90,14 +90,14 @@ export async function runBundleEntry(options) {
     );
   }
 
-  const root = mkdtempSync(join(tmpdir(), "jsqlite-bundle-"));
+  const root = mkdtempSync(join(tmpdir(), "jsinsqlite-bundle-"));
   try {
     const entry = extractBundle(root, options.entryPath, assets);
     const child = spawn(process.execPath, [entry, ...options.arguments], {
       cwd: options.cwd ?? process.cwd(),
       env: {
         ...process.env,
-        JSqlite_BUNDLE_ROOT: root,
+        JSINSQLITE_BUNDLE_ROOT: root,
         ...options.env,
       },
       stdio: "inherit",

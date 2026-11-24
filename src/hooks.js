@@ -2,7 +2,7 @@ import { extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { compileModuleFileRecord } from "./compiler.js";
 
-const LOGICAL_MODULE_PREFIX = "jsqlite:";
+const LOGICAL_MODULE_PREFIX = "jsinsqlite:";
 
 function sqliteTarget(urlLike, parentURL) {
   let url;

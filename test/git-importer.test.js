@@ -26,7 +26,7 @@ function git(repository, args) {
 }
 
 function createRepository() {
-  const repository = mkdtempSync(join(tmpdir(), "jsqlite-git-"));
+  const repository = mkdtempSync(join(tmpdir(), "jsinsqlite-git-"));
   const sourceDirectory = join(repository, "src");
   mkdirSync(sourceDirectory);
   git(repository, ["init"]);
