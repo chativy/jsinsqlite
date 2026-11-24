@@ -12,6 +12,13 @@
   "bin": {
     "jsinsqlite": "./bin/jsinsqlite.js"
   },
+  "files": [
+    "bin",
+    "src",
+    "examples/demo.manifest.json",
+    "examples/demo.mjs",
+    "README.md"
+  ],
   "engines": {
     "node": ">=22.18.0"
   },
