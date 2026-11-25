@@ -63,12 +63,10 @@ This example clones Undici, packages its entire source tree and benchmark
 dependencies into one SQLite file, then runs the HTTP/1.1 and HTTPS benchmarks
 directly from that database with `exec`.
 
-Install the current CLI globally. The `pack` command is currently on `main`;
-after the next npm release this can be replaced with
-`npm install --global jsinsqlite`.
+Install the CLI globally:
 
 ```bash
-npm install --global github:chativy/jsinsqlite
+npm install --global jsinsqlite
 ```
 
 Create a working directory:
