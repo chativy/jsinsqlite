@@ -1,6 +1,6 @@
 {
   "name": "jsinsqlite",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Compose Node.js ESM modules from entries stored in SQLite",
   "license": "MIT",
   "author": "Buttonizer <buttonizer@buttonizer.app>",
