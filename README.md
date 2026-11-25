@@ -57,6 +57,99 @@ Demo output:
 Total: $42.00
 ```
 
+### Clone and package a larger Node.js project
+
+This example clones Undici, installs only the dependencies required by its HTTP
+benchmark scripts, packages the complete source tree into SQLite, and registers
+the HTTP/1.1 and HTTPS benchmark entrypoints.
+
+```bash
+rm -rf .tmp/undici-benchmark
+git clone --depth=1 https://github.com/nodejs/undici.git \
+  .tmp/undici-benchmark/source
+mkdir -p .tmp/undici-benchmark/deps
+
+npm install \
+  --prefix .tmp/undici-benchmark/deps \
+  --no-save --ignore-scripts \
+  cronometro@7.0.1 \
+  axios@1.6.7 \
+  got@16.0.0 \
+  node-fetch@3.3.2 \
+  request@2.88.2 \
+  superagent@10.0.0
+
+mkdir -p .tmp/undici-benchmark/source/benchmarks/node_modules
+cp -R .tmp/undici-benchmark/deps/node_modules/. \
+  .tmp/undici-benchmark/source/benchmarks/node_modules/
+
+node bin/jsinsqlite.js pack \
+  .tmp/undici-benchmark/source \
+  .tmp/undici-benchmark/undici.sqlite \
+  undici \
+  --entry=benchmarks/server.js \
+  --force
+```
+
+Register both benchmark workloads:
+
+```bash
+node bin/jsinsqlite.js entrypoints add \
+  .tmp/undici-benchmark/undici.sqlite undici server-http \
+  --kind=asset --target=benchmarks/server.js
+
+node bin/jsinsqlite.js entrypoints add \
+  .tmp/undici-benchmark/undici.sqlite undici benchmark-http \
+  --kind=asset --target=benchmarks/benchmark.js
+
+node bin/jsinsqlite.js entrypoints add \
+  .tmp/undici-benchmark/undici.sqlite undici server-https \
+  --kind=asset --target=benchmarks/server-https.js
+
+node bin/jsinsqlite.js entrypoints add \
+  .tmp/undici-benchmark/undici.sqlite undici benchmark-https \
+  --kind=asset --target=benchmarks/benchmark-https.js
+```
+
+Run the HTTP/1.1 benchmark in two terminals.
+
+Server:
+
+```bash
+node bin/jsinsqlite.js run \
+  .tmp/undici-benchmark/undici.sqlite server-http \
+  --env=PORT=3042 --env=WORKERS=1 --env=TIMEOUT=0
+```
+
+Benchmark:
+
+```bash
+node bin/jsinsqlite.js run \
+  .tmp/undici-benchmark/undici.sqlite benchmark-http \
+  --env=PORT=3042 --env=SAMPLES=100 --env=CONNECTIONS=50
+```
+
+Run the HTTPS benchmark the same way, using port `3062`.
+
+Server:
+
+```bash
+node bin/jsinsqlite.js run \
+  .tmp/undici-benchmark/undici.sqlite server-https \
+  --env=PORT=3062 --env=WORKERS=1 --env=TIMEOUT=0
+```
+
+Benchmark:
+
+```bash
+node bin/jsinsqlite.js run \
+  .tmp/undici-benchmark/undici.sqlite benchmark-https \
+  --env=PORT=3062 --env=SAMPLES=100 --env=CONNECTIONS=50
+```
+
+The same SQLite file contains the Undici source, benchmark dependencies,
+HTTP/HTTPS servers, TLS fixtures, and both benchmark entrypoints.
+
 ## Concepts
 
 | Concept | Meaning |

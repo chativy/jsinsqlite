@@ -14,6 +14,7 @@ import {
 
 const USAGE = `Usage:
   jsinsqlite build <manifest.json> <source.sqlite> [--force]
+  jsinsqlite pack <source-dir> <source.sqlite> <module-key> --entry=relative/path [--version=version] [--force]
   jsinsqlite import <entry.ts> <source.sqlite> [module-key] [--force]
   jsinsqlite import --git <repo> <entry> <source.sqlite> [module-key] [--limit=5] [--history=path] [--force]
   jsinsqlite inspect modules <source.sqlite>
@@ -354,6 +355,35 @@ async function runCommand(rawArgs) {
   }
   if (command === "import") {
     await importCommand(args);
+    return;
+  }
+  if (command === "pack") {
+    const sourceDirectory = resolve(requireArgument(args, 1, "source directory"));
+    const databasePath = resolve(requireArgument(args, 2, "database path"));
+    const moduleKey = requireArgument(args, 3, "module key");
+    const entryPath = optionValue(args, "entry");
+    if (!entryPath) throw new Error("missing --entry");
+    const {
+      collectBundleDirectory,
+      importBundleDatabase,
+    } = await import("../src/bundle-importer.js");
+    const files = [];
+    collectBundleDirectory(files, sourceDirectory, {
+      excludedFiles: [databasePath],
+    });
+    const result = importBundleDatabase({
+      databasePath,
+      moduleKey,
+      description: `Packed from ${sourceDirectory}`,
+      sourcePath: sourceDirectory,
+      entryPath,
+      version: optionValue(args, "version") ?? "local",
+      files,
+      overwrite: args.includes("--force"),
+    });
+    console.log(
+      `Packed ${result.fileCount} files (${result.byteCount} bytes) into ${databasePath}`,
+    );
     return;
   }
   if (command === "inspect") {

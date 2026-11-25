@@ -3,7 +3,14 @@ import {
   readdirSync,
   readFileSync,
 } from "node:fs";
-import { basename, join, posix, relative, resolve, sep } from "node:path";
+import {
+  basename,
+  join,
+  posix,
+  relative,
+  resolve,
+  sep,
+} from "node:path";
 import { buildDatabase } from "./build.js";
 
 function archivePath(path) {
@@ -37,6 +44,46 @@ export function collectBundlePath(files, sourcePath, targetPath = basename(sourc
     content: readFileSync(absolute),
     mode: details.mode & 0o777,
   });
+}
+
+export function collectBundleDirectory(
+  files,
+  sourceDirectory,
+  options = {},
+) {
+  const root = resolve(sourceDirectory);
+  const excludedDirectories = new Set(
+    options.excludedDirectories ?? [".git", "node_modules/.cache"],
+  );
+  const excludedFiles = new Set(
+    (options.excludedFiles ?? []).map((path) => resolve(path)),
+  );
+
+  function visit(absolute, archivePath) {
+    if (excludedFiles.has(absolute)) return;
+    const details = lstatSync(absolute);
+    if (details.isSymbolicLink()) return;
+    if (details.isDirectory()) {
+      if (archivePath && excludedDirectories.has(archivePath)) return;
+      for (const entry of readdirSync(absolute, { withFileTypes: true })) {
+        visit(
+          join(absolute, entry.name),
+          posix.join(archivePath, entry.name),
+        );
+      }
+      return;
+    }
+    if (!details.isFile()) return;
+
+    files.push({
+      path: archivePath,
+      content: readFileSync(absolute),
+      mode: details.mode & 0o777,
+    });
+  }
+
+  visit(root, "");
+  return files;
 }
 
 export function importBundleDatabase(options) {
