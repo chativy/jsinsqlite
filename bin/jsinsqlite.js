@@ -6,7 +6,7 @@ import { pathToFileURL } from "node:url";
 import { buildDatabase } from "../src/build.js";
 import { runBundleEntry } from "../src/bundle-runner.js";
 import { compileModuleFile } from "../src/compiler.js";
-import { openSourceDatabase } from "../src/database.js";
+import { getCachedSourceDatabase } from "../src/database.js";
 import {
   listEntrypoints,
   removeEntrypoint,
@@ -181,11 +181,10 @@ async function inspectCommand(args) {
   const subject = requireArgument(args, 1, "inspect subject");
   const databasePath = resolve(requireArgument(args, 2, "database path"));
   if (subject === "modules") {
-    const db = openSourceDatabase(databasePath);
-    try {
-      const rows = db
-        .prepare(
-          `
+    const db = getCachedSourceDatabase(databasePath);
+    const rows = db
+      .prepare(
+        `
             SELECT modules.key, modules.description,
                    module_versions.version AS head,
                    count(history.id) AS versions
@@ -199,26 +198,22 @@ async function inspectCommand(args) {
             GROUP BY modules.id, modules.key, modules.description,
                      module_versions.version
             ORDER BY modules.key
-          `,
-        )
-        .all();
-      for (const row of rows) {
-        console.log(
-          `${row.key}\t${row.head}\t${row.versions}\t${row.description}`,
-        );
-      }
-    } finally {
-      db.close();
+        `,
+      )
+      .all();
+    for (const row of rows) {
+      console.log(
+        `${row.key}\t${row.head}\t${row.versions}\t${row.description}`,
+      );
     }
     return;
   }
   if (subject === "versions") {
     const moduleKey = args[3];
-    const db = openSourceDatabase(databasePath);
-    try {
-      const rows = db
-        .prepare(
-          `
+    const db = getCachedSourceDatabase(databasePath);
+    const rows = db
+      .prepare(
+        `
             SELECT modules.key AS module, module_versions.version,
                    module_versions.tag, module_versions.source_revision,
                    module_versions.created_at
@@ -226,16 +221,13 @@ async function inspectCommand(args) {
             JOIN module_versions ON module_versions.module_id = modules.id
             WHERE (? IS NULL OR modules.key = ?)
             ORDER BY modules.key, module_versions.created_at DESC
-          `,
-        )
-        .all(moduleKey ?? null, moduleKey ?? null);
-      for (const row of rows) {
-        console.log(
-          `${row.module}\t${row.version}\t${row.tag}\t${row.source_revision}\t${row.created_at}`,
-        );
-      }
-    } finally {
-      db.close();
+        `,
+      )
+      .all(moduleKey ?? null, moduleKey ?? null);
+    for (const row of rows) {
+      console.log(
+        `${row.module}\t${row.version}\t${row.tag}\t${row.source_revision}\t${row.created_at}`,
+      );
     }
     return;
   }

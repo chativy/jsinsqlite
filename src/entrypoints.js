@@ -1,5 +1,8 @@
 import { DatabaseSync } from "node:sqlite";
-import { openSourceDatabase } from "./database.js";
+import {
+  getCachedSourceDatabase,
+  invalidateSourceDatabase,
+} from "./database.js";
 
 function selectedVersion(db, moduleKey, version) {
   const module = db
@@ -33,11 +36,10 @@ function selectedVersion(db, moduleKey, version) {
 }
 
 export function listEntrypoints(options) {
-  const db = openSourceDatabase(options.databasePath);
-  try {
-    return db
-      .prepare(
-        `
+  const db = getCachedSourceDatabase(options.databasePath);
+  return db
+    .prepare(
+      `
           SELECT modules.key AS module, module_versions.version,
                  version_entrypoints.name, version_entrypoints.kind,
                  version_entrypoints.target
@@ -49,25 +51,21 @@ export function listEntrypoints(options) {
             AND (? IS NULL OR module_versions.version = ?)
           ORDER BY modules.key, module_versions.created_at DESC,
                    version_entrypoints.name
-        `,
-      )
-      .all(
-        options.moduleKey ?? null,
-        options.moduleKey ?? null,
-        options.version ?? null,
-        options.version ?? null,
-      );
-  } finally {
-    db.close();
-  }
+      `,
+    )
+    .all(
+      options.moduleKey ?? null,
+      options.moduleKey ?? null,
+      options.version ?? null,
+      options.version ?? null,
+    );
 }
 
 export function resolveEntrypoint(databasePath, name, version) {
-  const db = openSourceDatabase(databasePath);
-  try {
-    return db
-      .prepare(
-        `
+  const db = getCachedSourceDatabase(databasePath);
+  return db
+    .prepare(
+      `
           SELECT modules.key AS module, module_versions.id AS version_id,
                  module_versions.version, version_entrypoints.kind,
                  version_entrypoints.target
@@ -84,12 +82,9 @@ export function resolveEntrypoint(databasePath, name, version) {
               OR (? IS NULL AND module_heads.module_id IS NOT NULL)
             )
           ORDER BY modules.key, module_versions.created_at DESC
-        `,
-      )
-      .all(name, version ?? null, version ?? null, version ?? null);
-  } finally {
-    db.close();
-  }
+      `,
+    )
+    .all(name, version ?? null, version ?? null, version ?? null);
 }
 
 export function setEntrypoint(options) {
@@ -128,6 +123,7 @@ export function setEntrypoint(options) {
       options.kind,
       options.target,
     );
+    invalidateSourceDatabase(options.databasePath);
     return {
       module: options.moduleKey,
       version: target.version,
@@ -155,6 +151,7 @@ export function removeEntrypoint(options) {
         `entrypoint not found: ${options.name} in ${options.moduleKey}@${target.version}`,
       );
     }
+    invalidateSourceDatabase(options.databasePath);
     return {
       module: options.moduleKey,
       version: target.version,

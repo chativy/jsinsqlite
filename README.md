@@ -402,7 +402,9 @@ Core tables:
 ```js
 import {
   buildDatabase,
+  closeCachedSourceDatabases,
   compileModuleFile,
+  getCachedSourceDatabase,
   importGitVersions,
   importModuleDatabase,
   listEntrypoints,
@@ -414,6 +416,11 @@ import {
 
 The CLI is the primary interface. The API exposes the same manifest, import,
 compiler, asset, and entrypoint primitives for programmatic use.
+
+Read helpers reuse one read-only SQLite connection per resolved database path.
+Connections are reopened when the file fingerprint changes and are invalidated
+explicitly after repository-managed writes. Long-running library users can call
+`closeCachedSourceDatabases()` during shutdown.
 
 ## Security and caching
 

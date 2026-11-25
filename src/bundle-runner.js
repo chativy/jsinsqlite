@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
-import { openSourceDatabase } from "./database.js";
+import { getCachedSourceDatabase } from "./database.js";
 
 function bundleVersion(db, moduleKey, requestedVersion) {
   const module = db
@@ -61,26 +61,22 @@ function extractBundle(root, entryPath, assets) {
 }
 
 export async function runBundleEntry(options) {
-  const db = openSourceDatabase(options.databasePath);
+  const db = getCachedSourceDatabase(options.databasePath);
   let version;
   let assets;
-  try {
-    version = bundleVersion(db, options.moduleKey, options.version);
-    if (!version) {
-      throw new Error(
-        options.version
-          ? `bundle version not found: ${options.moduleKey}@${options.version}`
-          : `bundle module has no head version: ${options.moduleKey}`,
-      );
-    }
-    assets = db
-      .prepare(
-        "SELECT path, content, mode FROM module_assets WHERE module_version_id = ? ORDER BY path",
-      )
-      .all(version.id);
-  } finally {
-    db.close();
+  version = bundleVersion(db, options.moduleKey, options.version);
+  if (!version) {
+    throw new Error(
+      options.version
+        ? `bundle version not found: ${options.moduleKey}@${options.version}`
+        : `bundle module has no head version: ${options.moduleKey}`,
+    );
   }
+  assets = db
+    .prepare(
+      "SELECT path, content, mode FROM module_assets WHERE module_version_id = ? ORDER BY path",
+    )
+    .all(version.id);
   if (assets.length === 0) {
     throw new Error(`module is a source module, not a runnable bundle: ${options.moduleKey}`);
   }

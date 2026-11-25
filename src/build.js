@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import { basename, dirname, extname, join, posix } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { ROOT_ENTRY_KEY, ROOT_ENTRY_KIND } from "./constants.js";
+import { invalidateSourceDatabase } from "./database.js";
 import { initializeSchema } from "./schema.js";
 
 const ENTRY_KINDS = new Set([
@@ -463,6 +464,7 @@ export function buildDatabase(databasePath, rawManifest, options = {}) {
       db.close();
     }
 
+    invalidateSourceDatabase(databasePath);
     renameSync(temporaryPath, databasePath);
   } catch (error) {
     rmSync(temporaryPath, { force: true });

@@ -1,5 +1,5 @@
 import { ROOT_ENTRY_KIND } from "./constants.js";
-import { openSourceDatabase } from "./database.js";
+import { getCachedSourceDatabase } from "./database.js";
 
 const REFERENCE_LINE = /^([ \t]*)\/\*\s*@ref:(\d+)\s*\*\/[ \t\r]*$/;
 
@@ -224,12 +224,11 @@ export function compileModuleFileRecord(
   moduleKey = "main",
   version,
 ) {
-  const db = openSourceDatabase(databasePath);
-  try {
-    return compileModuleRecord(db, moduleKey, version);
-  } finally {
-    db.close();
-  }
+  return compileModuleRecord(
+    getCachedSourceDatabase(databasePath),
+    moduleKey,
+    version,
+  );
 }
 
 export function compileModuleFile(databasePath, moduleKey = "main", version) {

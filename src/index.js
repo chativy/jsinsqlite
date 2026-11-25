@@ -8,7 +8,12 @@ export {
   compileModuleRecord,
   SourceEntryError,
 } from "./compiler.js";
-export { openSourceDatabase } from "./database.js";
+export {
+  closeCachedSourceDatabases,
+  getCachedSourceDatabase,
+  invalidateSourceDatabase,
+  openSourceDatabase,
+} from "./database.js";
 export {
   listEntrypoints,
   removeEntrypoint,
