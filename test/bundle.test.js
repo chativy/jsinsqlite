@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -52,6 +52,7 @@ test("bundle files are stored in sqlite and run from the extracted tree", () => 
         "run",
         databasePath,
         "app",
+        `--cache-dir=${join(directory, "cache")}`,
         "--",
         "--help",
       ],
@@ -68,6 +69,7 @@ test("bundle files are stored in sqlite and run from the extracted tree", () => 
         databasePath,
         "app",
         "dist/bundle/cli.js",
+        `--cache-dir=${join(directory, "cache")}`,
         "--",
         "--direct",
       ],
@@ -75,6 +77,7 @@ test("bundle files are stored in sqlite and run from the extracted tree", () => 
     );
     assert.equal(direct.status, 0, direct.stderr);
     assert.equal(direct.stdout.trim(), "bundle --direct");
+    assert.equal(readdirSync(join(directory, "cache", "assets")).length, 1);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -108,6 +111,7 @@ test("run passes generic environment variables to the selected entrypoint", () =
         "run",
         databasePath,
         "app",
+        `--cache-dir=${join(directory, "cache")}`,
         "--env=TEST_SECRET=test-secret",
         "--",
         "--version",

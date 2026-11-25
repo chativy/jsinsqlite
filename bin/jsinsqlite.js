@@ -3,9 +3,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { buildDatabase } from "../src/build.js";
 import { runBundleEntry } from "../src/bundle-runner.js";
-import { compileModuleFile } from "../src/compiler.js";
 import { getCachedSourceDatabase } from "../src/database.js";
 import {
   listEntrypoints,
@@ -13,9 +11,6 @@ import {
   resolveEntrypoint,
   setEntrypoint,
 } from "../src/entrypoints.js";
-import { importGitVersions } from "../src/git-importer.js";
-import { importModuleDatabase } from "../src/importer.js";
-import "../src/register.js";
 
 const USAGE = `Usage:
   jsinsqlite build <manifest.json> <source.sqlite> [--force]
@@ -27,9 +22,9 @@ const USAGE = `Usage:
   jsinsqlite inspect code <source.sqlite> <module-key> [version]
   jsinsqlite entrypoints add <source.sqlite> <module-key> <name> --kind=asset|export --target=path-or-export [--version=tag]
   jsinsqlite entrypoints remove <source.sqlite> <module-key> <name> [--version=tag]
-  jsinsqlite run <source.sqlite> <entrypoint> [--version=tag] [--cwd=path] [--env=NAME=VALUE]... [-- arguments...]
+  jsinsqlite run <source.sqlite> <entrypoint> [--version=tag] [--cwd=path] [--cache-dir=path] [--no-cache] [--env=NAME=VALUE]... [-- arguments...]
   jsinsqlite call <source.sqlite> <module-key> <export> [--version=tag] [--cwd=path] [--env=NAME=VALUE]... [-- arguments...]
-  jsinsqlite exec <source.sqlite> <module-key> <entrypoint-path> [--version=tag] [--cwd=path] [--env=NAME=VALUE]... [-- arguments...]
+  jsinsqlite exec <source.sqlite> <module-key> <entrypoint-path> [--version=tag] [--cwd=path] [--cache-dir=path] [--no-cache] [--env=NAME=VALUE]... [-- arguments...]
 
 Versions default to the module head.`;
 
@@ -88,6 +83,7 @@ async function withExecutionSettings(options, callback) {
 }
 
 async function runExport(entrypoint, argumentsList, options) {
+  await import("../src/register.js");
   const url = pathToFileURL(options.databasePath);
   url.searchParams.set("module", entrypoint.module);
   if (entrypoint.version) url.searchParams.set("version", entrypoint.version);
@@ -126,6 +122,8 @@ async function runEntrypoint(args, forwardedArguments) {
     databasePath,
     version: optionValue(args, "version"),
     cwd: optionValue(args, "cwd"),
+    cache: !args.includes("--no-cache"),
+    cacheDir: optionValue(args, "cache-dir"),
     env: environmentOptions(args),
   };
   if (entrypoint.kind === "asset") {
@@ -171,6 +169,8 @@ async function execCommand(args, forwardedArguments) {
     entryPath,
     version: optionValue(args, "version"),
     cwd: optionValue(args, "cwd"),
+    cache: !args.includes("--no-cache"),
+    cacheDir: optionValue(args, "cache-dir"),
     env: environmentOptions(args),
     arguments: forwardedArguments,
   });
@@ -246,6 +246,7 @@ async function inspectCommand(args) {
   }
   if (subject === "code") {
     const moduleKey = requireArgument(args, 3, "module key");
+    const { compileModuleFile } = await import("../src/compiler.js");
     process.stdout.write(
       `${compileModuleFile(databasePath, moduleKey, args[4])}\n`,
     );
@@ -295,6 +296,7 @@ async function importCommand(args) {
     if (!Number.isSafeInteger(limit) || limit <= 0) {
       throw new Error("--limit must be a positive integer");
     }
+    const { importGitVersions } = await import("../src/git-importer.js");
     const graph = importGitVersions({
       repositoryPath,
       entryPath,
@@ -318,6 +320,7 @@ async function importCommand(args) {
   const entryPath = resolve(requireArgument(args, 1, "entry path"));
   const databasePath = resolve(requireArgument(args, 2, "database path"));
   const moduleKey = args[3]?.startsWith("--") ? undefined : args[3];
+  const { importModuleDatabase } = await import("../src/importer.js");
   const graph = importModuleDatabase({
     entryPath,
     databasePath,
@@ -344,6 +347,7 @@ async function runCommand(rawArgs) {
   if (command === "build") {
     const manifestPath = resolve(requireArgument(args, 1, "manifest path"));
     const databasePath = resolve(requireArgument(args, 2, "database path"));
+    const { buildDatabase } = await import("../src/build.js");
     buildDatabase(
       databasePath,
       JSON.parse(readFileSync(manifestPath, "utf8")),
