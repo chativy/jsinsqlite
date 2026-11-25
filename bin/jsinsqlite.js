@@ -22,9 +22,9 @@ const USAGE = `Usage:
   jsinsqlite inspect code <source.sqlite> <module-key> [version]
   jsinsqlite entrypoints add <source.sqlite> <module-key> <name> --kind=asset|export --target=path-or-export [--version=tag]
   jsinsqlite entrypoints remove <source.sqlite> <module-key> <name> [--version=tag]
-  jsinsqlite run <source.sqlite> <entrypoint> [--version=tag] [--cwd=path] [--cache-dir=path] [--no-cache] [--env=NAME=VALUE]... [-- arguments...]
+  jsinsqlite run <source.sqlite> <entrypoint> [--version=tag] [--cwd=path] [--env=NAME=VALUE]... [-- arguments...]
   jsinsqlite call <source.sqlite> <module-key> <export> [--version=tag] [--cwd=path] [--env=NAME=VALUE]... [-- arguments...]
-  jsinsqlite exec <source.sqlite> <module-key> <entrypoint-path> [--version=tag] [--cwd=path] [--cache-dir=path] [--no-cache] [--env=NAME=VALUE]... [-- arguments...]
+  jsinsqlite exec <source.sqlite> <module-key> <entrypoint-path> [--version=tag] [--cwd=path] [--env=NAME=VALUE]... [-- arguments...]
 
 Versions default to the module head.`;
 
@@ -122,8 +122,6 @@ async function runEntrypoint(args, forwardedArguments) {
     databasePath,
     version: optionValue(args, "version"),
     cwd: optionValue(args, "cwd"),
-    cache: !args.includes("--no-cache"),
-    cacheDir: optionValue(args, "cache-dir"),
     env: environmentOptions(args),
   };
   if (entrypoint.kind === "asset") {
@@ -169,8 +167,6 @@ async function execCommand(args, forwardedArguments) {
     entryPath,
     version: optionValue(args, "version"),
     cwd: optionValue(args, "cwd"),
-    cache: !args.includes("--no-cache"),
-    cacheDir: optionValue(args, "cache-dir"),
     env: environmentOptions(args),
     arguments: forwardedArguments,
   });

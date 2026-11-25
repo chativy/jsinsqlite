@@ -251,10 +251,6 @@ Rules:
   string.
 - `JSINSQLITE_BUNDLE_ROOT` is set to the extracted asset root.
 
-Asset extraction is cached by module version content hash. The default cache is
-under `~/.cache/jsinsqlite/assets`. Override it with `--cache-dir=path` or bypass
-it with `--no-cache`.
-
 If the same entrypoint name exists in multiple module heads, `run` rejects the
 name as ambiguous. Use a unique name or provide `--version`.
 
