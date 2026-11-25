@@ -1,4 +1,4 @@
 interface:
   display_name: "jsinsqlite"
-  short_description: "Run versioned Node.js apps from SQLite"
-  default_prompt: "Use $jsinsqlite to package or run this Node.js application from a SQLite database."
+  short_description: "Design single-file SQLite JS app packages"
+  default_prompt: "Use $jsinsqlite to design and reproduce a single-file SQLite package for this JavaScript application and its runtime resources."

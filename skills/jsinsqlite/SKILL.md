@@ -1,172 +1,156 @@
 ---
 name: jsinsqlite
-description: Store, version, inspect, and run JavaScript or TypeScript applications and runtime assets in SQLite with jsinsqlite. Use when packaging Node.js code and dependencies into a database, managing DB-backed entrypoints, or diagnosing an existing jsinsqlite database.
+description: Explain and guide the design of a single-file SQLite JavaScript application package containing code, node_modules, resources, and a runnable entrypoint. Use when an agent must package or reproduce a JS application as one portable database without relying on an existing jsinsqlite implementation.
 ---
 
 # jsinsqlite
 
-Use `jsinsqlite` to treat a SQLite database as the source and runtime artifact:
-versioned source entries, JavaScript/TypeScript assets, dependency bundles, and
-named entrypoints all live in one DB file.
+Use this skill to design a reproducible, implementation-independent way to store
+a JavaScript application in one SQLite database and run it later.
 
-## Choose the CLI
+Do not assume that the `jsinsqlite` npm package or this repository's CLI exists.
+The agent must be able to build the mechanism from the project's available tools
+and the database design described here.
 
-Inside this repository, prefer:
+## Decide what is being packaged
 
-```bash
-node bin/jsinsqlite.js <command>
-```
+Package a staged runtime directory, not an arbitrary source checkout.
 
-For an installed package, use `jsinsqlite` or `npx jsinsqlite`. Do not add
-application-specific names or environment variables to CLI code. Pass them as
-DB metadata and generic `--env=NAME=VALUE` arguments.
+1. Build or transpile TypeScript and bundler-dependent source first.
+2. Resolve whether the app needs the full `node_modules` tree or a bundled
+   artifact.
+3. Include runtime resources such as templates, images, JSON, WASM, native
+   modules, workers, and configuration defaults.
+4. Exclude `.git`, caches, temporary files, secrets, and the output database.
+5. Choose one relative entrypoint, such as `index.mjs` or `dist/main.js`.
 
-## Start from the DB
+Prefer a bundled executable when bundle correctness can be verified. Store the
+full staged directory when the application depends on unbundled `node_modules`,
+dynamic imports, workers, or relative resource paths.
 
-Never assume a module key, version, or entrypoint. Inspect first:
+Do not treat transpilation or bundling as part of the SQLite concept. Those are
+preparation steps; SQLite is the portable storage and extraction layer.
 
-```bash
-jsinsqlite inspect modules app.sqlite
-jsinsqlite inspect versions app.sqlite
-jsinsqlite inspect entrypoints app.sqlite
-```
+## Design the database
 
-Select a specific version with `--version=<version>` when the head is not the
-intended target. `inspect entrypoints` lists every version unless filtered.
+Keep a small archive schema rather than reproducing a complete module loader.
 
-For schema relationships and direct SQL diagnostics, read
-[references/schema.md](references/schema.md).
+### Archive metadata
 
-## Create source versions
+Use a key-value table for non-path metadata:
 
-### Import TypeScript or JavaScript
+- schema format version
+- application name and version
+- recorded entrypoint
+- package creation time
+- deterministic summary digest
 
-Import one entry and its local runtime dependency graph:
+### File table
 
-```bash
-jsinsqlite import src/main.ts app.sqlite app
-```
+Store one row per packaged path. Each row needs:
 
-Import recent Git snapshots:
+- normalized relative path
+- file kind: regular file or symbolic link
+- content as a BLOB for files, or link target for symlinks
+- executable mode bits
+- byte size
+- per-file checksum
 
-```bash
-jsinsqlite import --git . src/main.ts app.sqlite app \
-  --limit=5 --history=src
-```
+Use the normalized path as the primary key. Add an index on path suffixes or
+hashes only when an actual query needs one.
 
-The importer resolves local imports recursively, ignores `import type`,
-rewrites local imports to `jsinsqlite:<module>`, and splits top-level
-declarations into entries. Runtime npm imports are reported but not mapped into
-SQLite automatically.
+Store all bytes required at runtime. This includes JavaScript, package metadata,
+resources, workers, WASM, and native modules. Native binaries remain tied to their
+target platform and architecture.
 
-### Build a manifest
+### Determinism
 
-Use `build` for explicit entries, versions, assets, and entrypoints:
+Walk paths in lexical order. Derive the package summary digest from sorted path,
+kind, mode, size, and per-file digest values. Use a temporary database for
+construction, insert everything in one transaction, then atomically rename the
+completed DB.
 
-```bash
-jsinsqlite build app.manifest.json app.sqlite --force
-```
+## Pack safely
 
-[assets/minimal.manifest.json](assets/minimal.manifest.json) is a runnable
-template. A version must contain exactly one root entry with
-`kind: "module"` and `key: "main"`.
+Validate before writing:
 
-To compose source fragments, place a marker on its own line:
+1. The source directory exists.
+2. The entrypoint is a normalized relative path inside the source root.
+3. Every stored path stays inside the source root.
+4. The output does not already exist unless replacement was explicitly
+   requested.
+5. The output database is not also being traversed as an input.
 
-```js
-/* @ref:0 */
-```
+Treat symbolic links as links, not recursive directory copies. This avoids loops
+and preserves workspace layouts. Document that links pointing outside the staged
+root must remain valid on the target system, or the packaging source should be a
+larger directory that contains their targets.
 
-The marker's indentation is applied to every inserted line. References must be
-acyclic and every declared slot must appear exactly once.
+Do not follow paths escaping the source root. Do not store credentials from the
+environment or user-home configuration unless the user explicitly identifies
+them as required runtime resources.
 
-## Configure entrypoints
+## Inspect before running
 
-Entrypoints are version-scoped through `version_entrypoints`.
+An inspection path should report:
 
-```bash
-jsinsqlite entrypoints add app.sqlite app app \
-  --kind=asset --target=dist/entry.js
+- app name and version
+- recorded entrypoint
+- file and symlink counts
+- total unpacked size
+- creation time and summary digest
 
-jsinsqlite entrypoints add app.sqlite app greet \
-  --kind=export --target=greet
-```
+It should also allow listing paths and filtering by prefix or extension. Inspect
+the metadata and file table directly when diagnosing a package. Confirm that the
+entrypoint exists and that package metadata, dependencies, and expected resources
+are present before attempting extraction.
 
-Use `--version=<version>` to target a non-head version. For asset entrypoints,
-the target must already exist in `module_assets` for that version.
+## Run from the database
 
-Remove:
+Running is a controlled extraction followed by a normal Node process.
 
-```bash
-jsinsqlite entrypoints remove app.sqlite app greet
-```
+1. Open the database read-only.
+2. Validate the archive format version.
+3. Resolve the recorded entrypoint or an explicitly supplied override.
+4. Create a fresh temporary directory.
+5. Create parent directories and extract regular files and symlinks.
+6. Apply mode bits.
+7. Verify extraction paths stay inside the temporary root.
+8. Run Node on the entrypoint.
+9. Use the extracted root as the working directory so relative resources work.
+10. Inherit stdio for CLI and TUI behavior.
+11. Forward the exit status.
+12. Remove the temporary directory after the child exits.
 
-Bundle imports automatically create an asset entrypoint named after the module.
+Pass user arguments unchanged. Accept environment variables explicitly rather
+than hardcoding application-specific names. Expose the extraction root through a
+generic environment variable so applications can locate packaged resources.
 
-## Run
+## Verification
 
-Prefer the named entrypoint:
+Build a temporary app that contains:
 
-```bash
-jsinsqlite run app.sqlite app \
-  --env=API_KEY=secret -- \
-  --entrypoint-flag value
-```
+- one entrypoint
+- one local import
+- one dependency under `node_modules`
+- one nested text resource
+- one binary resource
 
-Execution semantics:
+Package it, inspect the metadata and paths, run it from the database, and verify
+stdout, exit status, dependency loading, and resource reads.
 
-- `kind=asset`: extract the selected version's asset tree to a temporary
-  directory and spawn Node on the target.
-- `kind=export`: import the selected DB module and call the target export.
-- `--` arguments pass to assets unchanged. Export arguments are JSON-decoded
-  individually, with non-JSON values remaining strings.
-- `JSINSQLITE_BUNDLE_ROOT` points at the extracted asset root.
+Also test that extraction fails for paths containing parent-directory traversal
+or absolute paths.
 
-Bypass entrypoint lookup only for debugging or dynamic targets:
+## Operational boundaries
 
-```bash
-jsinsqlite call app.sqlite app greet -- '"world"'
-jsinsqlite exec app.sqlite app dist/entry.js -- --version
-```
-
-## Direct ESM imports
-
-Register the loader before any static SQLite import:
-
-```bash
-node --import jsinsqlite/register app.mjs
-```
-
-```js
-import { summary } from "./app.sqlite?module=app";
-import { helper } from "jsinsqlite:lib";
-```
-
-The `module` query selects the module; omitting it selects `main`. Add
-`version=<version>` to select a version. Internal `jsinsqlite:<module>` imports
-inherit the parent DB and version.
-
-## Modify databases safely
-
-- Work inside a transaction for multi-table changes.
-- Preserve immutability: create a new `module_versions` row instead of editing
-  an old version's semantics in place.
-- When cloning a version, copy entries, entry references, assets, and
-  entrypoints, then update `module_heads` explicitly.
-- Keep `content_hash` consistent with the selected version.
-- For asset changes, update or clone the BLOB before updating the version and
-  head.
-
-The exact columns and clone checklist are in
-[references/schema.md](references/schema.md).
-
-## Verify
-
-Run the repository smoke test:
-
-```bash
-node skills/jsinsqlite/scripts/smoke.mjs
-```
-
-It builds the bundled minimal manifest in a temporary directory, inspects the
-module and entrypoint, executes the export, and checks `Hello, world`.
+- SQLite stores bytes; it does not make native modules portable across platforms.
+- Large applications increase extraction cost because execution requires a
+  temporary file tree.
+- Changing a symlink target may break extraction if the target is outside the
+  archive.
+- Running a database executes code with the current user's permissions.
+- ESM import caches do not apply to child processes, but long-running apps still
+  cache modules internally.
+- Keep packaging deterministic so identical inputs produce recognizable outputs.
+- Never describe the database as a sandbox.
